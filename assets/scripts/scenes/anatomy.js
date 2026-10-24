@@ -256,6 +256,20 @@ export function create(THREE, kit) {
     return result;
   };
   const onWall = (a, b, inset = 0) => direction(a, b).multiplyScalar(RETINA - inset);
+  // The same point written into a given vector, for what is worked out at every frame and used at once
+  // (a new vector each time, by the hundred at every frame, kept the memory cleaner busy: a pause of a
+  // tenth of a second now and then on a phone).
+  const onWallInto = (target, a, b, inset = 0) => {
+    const theta = Math.hypot(a, b);
+    target.copy(POLE);
+    if (theta > 1e-6) {
+      target.multiplyScalar(Math.cos(theta))
+        .addScaledVector(NASAL, (Math.sin(theta) * a) / theta)
+        .addScaledVector(UP, (Math.sin(theta) * b) / theta);
+    }
+    return target.multiplyScalar(RETINA - inset);
+  };
+  const scratch = new THREE.Vector3();
   // A smooth curve through points given in angles, as points on the wall.
   const wallCurve = (points, inset, samples = 36) => {
     const curve = new THREE.CatmullRomCurve3(points.map(([a, b]) => new THREE.Vector3(a, b, 0)), false, 'centripetal');
@@ -337,17 +351,25 @@ export function create(THREE, kit) {
   eye.add(cup.object);
   const cupFrameA = new THREE.Vector3().crossVectors(discDirection, UP).normalize();
   const cupFrameB = new THREE.Vector3().crossVectors(discDirection, cupFrameA).normalize();
+  // (Its points are worked out in the same few vectors at every frame, segment by segment.)
+  const cupCentre = new THREE.Vector3();
+  const cupFrom = new THREE.Vector3();
+  const cupTo = new THREE.Vector3();
   const drawCup = (opening) => {
     const radius = RETINA * (0.026 + 0.034 * opening);
     const depth = 0.35 + 1.2 * opening;
     cup.begin();
     for (let k = 0; k < 3; k++) {
       const ringRadius = radius * (1 - k * 0.25);
-      const centre = discDirection.clone().multiplyScalar(RETINA - 0.04 + (depth * k) / 2);
-      cup.line(Array.from({ length: 29 }, (_, i) => {
+      cupCentre.copy(discDirection).multiplyScalar(RETINA - 0.04 + (depth * k) / 2);
+      for (let i = 0; i <= 28; i++) {
         const psi = (i / 28) * TAU;
-        return centre.clone().addScaledVector(cupFrameA, ringRadius * Math.cos(psi)).addScaledVector(cupFrameB, ringRadius * Math.sin(psi));
-      }));
+        cupTo.copy(cupCentre).addScaledVector(cupFrameA, ringRadius * Math.cos(psi)).addScaledVector(cupFrameB, ringRadius * Math.sin(psi));
+        if (i > 0) {
+          cup.push(cupFrom, cupTo, (i - 1) / 28, i / 28);
+        }
+        cupFrom.copy(cupTo);
+      }
     }
     cup.end();
   };
@@ -388,16 +410,20 @@ export function create(THREE, kit) {
   eye.add(pushes.object);
   const pushDirections = [[0.1, 0.18], [0.35, 0.05], [0.12, -0.2], [-0.15, 0.02], [0.3, 0.3], [0.32, -0.28], [-0.1, 0.32], [-0.08, -0.3]]
     .map(([a, b]) => direction(a, b));
+  const pushApex = new THREE.Vector3();
+  const pushSide = new THREE.Vector3();
+  const pushBack = new THREE.Vector3();
+  const pushWing = new THREE.Vector3();
   const drawPushes = (time) => {
     pushes.begin();
     pushDirections.forEach((dir, i) => {
       const p = (time * 0.42 + i / pushDirections.length) % 1;
       const size = Math.sin(Math.PI * p) * 1.1;
-      const apex = dir.clone().multiplyScalar(2 + p * 6.8);
-      const side = new THREE.Vector3().crossVectors(dir, NASAL).normalize();
-      const back = apex.clone().addScaledVector(dir, -size);
-      pushes.push(back.clone().addScaledVector(side, size * 0.8), apex);
-      pushes.push(apex, back.clone().addScaledVector(side, -size * 0.8));
+      pushApex.copy(dir).multiplyScalar(2 + p * 6.8);
+      pushSide.crossVectors(dir, NASAL).normalize();
+      pushBack.copy(pushApex).addScaledVector(dir, -size);
+      pushes.push(pushWing.copy(pushBack).addScaledVector(pushSide, size * 0.8), pushApex);
+      pushes.push(pushApex, pushWing.copy(pushBack).addScaledVector(pushSide, -size * 0.8));
     });
     pushes.end();
   };
@@ -482,19 +508,21 @@ export function create(THREE, kit) {
     const size = amount * (1 + 0.14 * Math.sin(time * 1.7 + i * 1.3));
     return sum + size * Math.exp(-((a - da) ** 2 + (b - db) ** 2) / (0.045 * 0.045));
   }, 0);
+  const gridFrom = new THREE.Vector3();
+  const gridTo = new THREE.Vector3();
   const drawGrid = (amount, time) => {
-    const at = (i, j) => {
+    const at = (target, i, j) => {
       const a = -GRID_HALF + (2 * GRID_HALF * i) / GRID;
       const b = -GRID_HALF + (2 * GRID_HALF * j) / GRID;
-      return onWall(a, b, 0.16 + swellAt(a, b, amount, time));
+      return onWallInto(target, a, b, 0.16 + swellAt(a, b, amount, time));
     };
     grid.begin();
     for (let j = 0; j <= GRID; j++) {
       for (let i = 0; i < GRID; i++) {
         const t0 = (j + i / GRID) / (GRID + 1);
         const t1 = (j + (i + 1) / GRID) / (GRID + 1);
-        grid.push(at(i, j), at(i + 1, j), t0, t1);
-        grid.push(at(j, i), at(j, i + 1), t0, t1);
+        grid.push(at(gridFrom, i, j), at(gridTo, i + 1, j), t0, t1);
+        grid.push(at(gridFrom, j, i), at(gridTo, j, i + 1), t0, t1);
       }
     }
     grid.end();
@@ -511,23 +539,40 @@ export function create(THREE, kit) {
   };
   const flapHeight = (u, v, amount, time) => amount * 2.3 * Math.sin(Math.PI * u) ** 0.75 * Math.sin(Math.PI * v) ** 0.9
     * (0.86 + 0.14 * Math.sin(time * 1.5 + u * 3.2 + v * 1.4));
+  // The flap is drawn at every frame while shown: its points go through the same two vectors, line by
+  // line, segment by segment (as ribbon.line would do with a list of points).
+  const flapFrom = new THREE.Vector3();
+  const flapTo = new THREE.Vector3();
+  const flapPointInto = (target, u, v, height) => {
+    const theta = FLAP.theta[0] + u * (FLAP.theta[1] - FLAP.theta[0]);
+    const phi = FLAP.phi[0] + v * (FLAP.phi[1] - FLAP.phi[0]);
+    return onWallInto(target, theta * Math.cos(phi), theta * Math.sin(phi), 0.05 + height);
+  };
+  const flapLine = (count, pointAt) => {
+    pointAt(flapFrom, 0);
+    for (let i = 1; i <= count; i++) {
+      pointAt(flapTo, i);
+      flap.push(flapFrom, flapTo, (i - 1) / count, i / count);
+      flapFrom.copy(flapTo);
+    }
+  };
   const drawFlap = (amount, time) => {
     flap.begin();
     for (let j = 0; j <= FLAP.columns; j++) {
       const v = j / FLAP.columns;
-      flap.line(Array.from({ length: FLAP.rows + 1 }, (_, i) => flapPoint(i / FLAP.rows, v, flapHeight(i / FLAP.rows, v, amount, time))));
+      flapLine(FLAP.rows, (target, i) => flapPointInto(target, i / FLAP.rows, v, flapHeight(i / FLAP.rows, v, amount, time)));
     }
     for (let i = 0; i <= FLAP.rows; i++) {
       const u = i / FLAP.rows;
-      flap.line(Array.from({ length: FLAP.columns + 1 }, (_, j) => flapPoint(u, j / FLAP.columns, flapHeight(u, j / FLAP.columns, amount, time))));
+      flapLine(FLAP.columns, (target, j) => flapPointInto(target, u, j / FLAP.columns, flapHeight(u, j / FLAP.columns, amount, time)));
     }
     // The torn edge, a horseshoe, stands up a little more than the rest.
-    flap.line(Array.from({ length: 21 }, (_, i) => {
+    flapLine(20, (target, i) => {
       const s = -Math.PI / 2 + (i / 20) * Math.PI;
       const u = TEAR.u - 0.09 * Math.cos(s);
       const v = TEAR.v + 0.13 * Math.sin(s);
-      return flapPoint(u, v, flapHeight(u, v, amount, time) + amount * 0.45);
-    }));
+      return flapPointInto(target, u, v, flapHeight(u, v, amount, time) + amount * 0.45);
+    });
     flap.end();
   };
   // Fluid from the vitreous passing through the tear under the retina; floaters in the vitreous.
@@ -682,16 +727,19 @@ export function create(THREE, kit) {
     vesselShader.uniforms.uPulses.value = 2.2;
     swellings.shader.uniforms.uOpacity.value = d * fade * story;
     bleeds.shader.uniforms.uOpacity.value = d * fade * story;
-    ANEURYSMS.forEach(([a, b], i) => {
-      const grow = smooth(1.2 + 0.28 * i, 1.7 + 0.28 * i, phase);
-      swellings.set(i, onWall(a, b, 0.18), 11 * grow, grow);
-    });
-    BLEEDS.forEach(([a, b], i) => {
-      const grow = smooth(3.2 + 0.4 * i, 3.9 + 0.4 * i, phase);
-      bleeds.set(i, onWall(a, b, 0.18), (9 + (i % 3) * 3) * grow, 0.85 * grow);
-    });
-    swellings.done();
-    bleeds.done();
+    // (What a disease not shown would draw is not worked out: it is not seen.)
+    if (d > 0.004) {
+      ANEURYSMS.forEach(([a, b], i) => {
+        const grow = smooth(1.2 + 0.28 * i, 1.7 + 0.28 * i, phase);
+        swellings.set(i, onWallInto(scratch, a, b, 0.18), 11 * grow, grow);
+      });
+      BLEEDS.forEach(([a, b], i) => {
+        const grow = smooth(3.2 + 0.4 * i, 3.9 + 0.4 * i, phase);
+        bleeds.set(i, onWallInto(scratch, a, b, 0.18), (9 + (i % 3) * 3) * grow, 0.85 * grow);
+      });
+      swellings.done();
+      bleeds.done();
+    }
     sproutShader.uniforms.uOpacity.value = 0.9 * d * fade * story;
     sproutShader.uniforms.uDraw.value = 1.02 * smooth(4.6, 6.6, phase);
 
@@ -707,13 +755,15 @@ export function create(THREE, kit) {
       drawGrid(swell, time);
     }
     drusenDots.shader.uniforms.uOpacity.value = m * fade * story;
-    DRUSEN.forEach(([a, b], i) => {
-      const grow = smooth(1.3 + 0.25 * i, 2 + 0.25 * i, phase);
-      drusenDots.set(i, onWall(a, b, 0.16 + swellAt(a, b, swell, time) * 0.55), 9 * grow, 0.9 * grow);
-    });
-    // The point the eye fixes, in the middle of the grid.
-    drusenDots.set(DRUSEN.length, onWall(0, 0, 0.2 + swellAt(0, 0, swell, time)), 7, smooth(0.6, 1.2, phase));
-    drusenDots.done();
+    if (m > 0.004) {
+      DRUSEN.forEach(([a, b], i) => {
+        const grow = smooth(1.3 + 0.25 * i, 2 + 0.25 * i, phase);
+        drusenDots.set(i, onWallInto(scratch, a, b, 0.16 + swellAt(a, b, swell, time) * 0.55), 9 * grow, 0.9 * grow);
+      });
+      // The point the eye fixes, in the middle of the grid.
+      drusenDots.set(DRUSEN.length, onWallInto(scratch, 0, 0, 0.2 + swellAt(0, 0, swell, time)), 7, smooth(0.6, 1.2, phase));
+      drusenDots.done();
+    }
 
     // Detachment.
     phase = phaseOf('decollement');
@@ -725,20 +775,22 @@ export function create(THREE, kit) {
       drawFlap(rise, time);
     }
     drops.shader.uniforms.uOpacity.value = r * fade * story;
-    const tearPoint = flapPoint(TEAR.u, TEAR.v, flapHeight(TEAR.u, TEAR.v, rise, time) + rise * 0.6);
-    const under = flapPoint(0.5, 0.5, flapHeight(0.5, 0.5, rise, time) * 0.35);
-    const inside = tearPoint.clone().multiplyScalar(0.55);
-    for (let i = 0; i < 7; i++) {
-      const p = (time * 0.3 + i / 7) % 1;
-      const point = p < 0.5 ? inside.clone().lerp(tearPoint, p * 2) : tearPoint.clone().lerp(under, (p - 0.5) * 2);
-      drops.set(i, point, 6, Math.sin(Math.PI * p) * smooth(2, 2.8, phase));
-    }
-    drops.done();
     floaters.shader.uniforms.uOpacity.value = 0.55 * r * fade * story;
-    FLOATERS.forEach(([x, y, z], i) => {
-      floaters.set(i, new THREE.Vector3(x + Math.sin(time * 0.4 + i) * 0.8, y + Math.sin(time * 0.3 + i * 2) * 0.6, z), 7 + (i % 2) * 4, 1);
-    });
-    floaters.done();
+    if (r > 0.004) {
+      const tearPoint = flapPoint(TEAR.u, TEAR.v, flapHeight(TEAR.u, TEAR.v, rise, time) + rise * 0.6);
+      const under = flapPoint(0.5, 0.5, flapHeight(0.5, 0.5, rise, time) * 0.35);
+      const inside = tearPoint.clone().multiplyScalar(0.55);
+      for (let i = 0; i < 7; i++) {
+        const p = (time * 0.3 + i / 7) % 1;
+        const point = p < 0.5 ? scratch.copy(inside).lerp(tearPoint, p * 2) : scratch.copy(tearPoint).lerp(under, (p - 0.5) * 2);
+        drops.set(i, point, 6, Math.sin(Math.PI * p) * smooth(2, 2.8, phase));
+      }
+      drops.done();
+      FLOATERS.forEach(([x, y, z], i) => {
+        floaters.set(i, scratch.set(x + Math.sin(time * 0.4 + i) * 0.8, y + Math.sin(time * 0.3 + i * 2) * 0.6, z), 7 + (i % 2) * 4, 1);
+      });
+      floaters.done();
+    }
 
     // The glass of the eye glows on its edges; inside, the colour of the disease.
     scleraGlow.material.uniforms.uIntensity.value = 0.4 * fade;

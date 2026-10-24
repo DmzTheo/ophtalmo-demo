@@ -151,8 +151,15 @@
   // middle of its work, which is what made the scroll stutter on phones.
   const progressBar = document.querySelector('[data-progress]');
   const scrollTasks = [];
+  // What only decorates the scroll (the reading bar, photos and drawings drifting, reading lines) is
+  // written ten times a second at most, and the screen glides between two writes (a short transition
+  // in the stylesheet): written at every frame, each made the browser draw the page again, which a
+  // phone could not do at the pace of a scroll (6 to 10 ms a time on the surgeries page).
+  const slowTasks = [];
   const measureTasks = [];
-  const view = { y: window.scrollY, height: window.innerHeight, maxScroll: 0 };
+  // (The scroll offset is read once the page is laid out: read while the scripts start, it made the
+  // browser lay the page out early.)
+  const view = { y: 0, height: 0, width: 0, maxScroll: 0, pageHeight: 0 };
   let lastScrollY = view.y;
   // The top of an element in the page, as laid out (the transforms it may carry do not count).
   const pageTop = (element) => {
@@ -163,9 +170,12 @@
     return top;
   };
 
-  scrollTasks.push(() => {
+  slowTasks.push(() => {
     const { y, maxScroll } = view;
     progressBar?.style.setProperty('--progress', maxScroll > 0 ? (y / maxScroll).toFixed(4) : '0');
+  });
+  scrollTasks.push(() => {
+    const { y } = view;
     header.classList.toggle('is-scrolled', y > 8);
 
     const delta = y - lastScrollY;
@@ -186,10 +196,32 @@
     }
   });
 
+  const SLOW_PACE = 100;
+  let lastSlowRun = -Infinity;
+  let slowTimer = 0;
+  const runSlowTasks = () => {
+    window.clearTimeout(slowTimer);
+    slowTimer = 0;
+    lastSlowRun = performance.now();
+    slowTasks.forEach((task) => task());
+  };
   let isTicking = false;
+  // The scroll offset is read once a frame, here: read at each scroll event, it made Firefox bring
+  // the styles of the page up to date at once, in the middle of the event.
   const runScrollTasks = () => {
     isTicking = false;
+    view.y = window.scrollY;
     scrollTasks.forEach((task) => task());
+    const wait = SLOW_PACE - (performance.now() - lastSlowRun);
+    if (wait <= 0) {
+      runSlowTasks();
+    } else if (!slowTimer) {
+      // The last write of a scroll still comes, a little later.
+      slowTimer = window.setTimeout(() => {
+        view.y = window.scrollY;
+        runSlowTasks();
+      }, wait);
+    }
   };
   const requestScrollTasks = () => {
     if (!isTicking) {
@@ -197,18 +229,32 @@
       window.requestAnimationFrame(runScrollTasks);
     }
   };
+  let isMeasured = false;
   const measure = () => {
-    view.y = window.scrollY;
+    if (!isMeasured) {
+      // The page may open scrolled (a link to a section, a reload): the header stays as it is.
+      isMeasured = true;
+      lastScrollY = window.scrollY;
+    }
     view.height = window.innerHeight;
-    view.maxScroll = Math.max(0, root.scrollHeight - view.height);
+    view.width = window.innerWidth;
+    view.pageHeight = root.scrollHeight;
+    view.maxScroll = Math.max(0, view.pageHeight - view.height);
     measureTasks.forEach((task) => task());
     requestScrollTasks();
   };
-  window.addEventListener('scroll', () => {
-    view.y = window.scrollY;
-    requestScrollTasks();
-  }, { passive: true });
-  window.addEventListener('resize', measure);
+  window.addEventListener('scroll', requestScrollTasks, { passive: true });
+  // A phone's bar of address folding away as the page scrolls only changes the height of the screen:
+  // nothing is measured again (the places in the page stay the same). A new width measures all.
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === view.width) {
+      view.height = window.innerHeight;
+      view.maxScroll = Math.max(0, view.pageHeight - view.height);
+      requestScrollTasks();
+      return;
+    }
+    measure();
+  });
   // The page changing size (and the first layout) measures again; the observer reports after the
   // layout, when reading it costs nothing.
   if ('ResizeObserver' in window) {
@@ -238,7 +284,7 @@
       item.top = pageTop(item.frame);
       item.height = item.frame.offsetHeight;
     }));
-    scrollTasks.push(() => {
+    slowTasks.push(() => {
       visibleFrames.forEach(({ image, top, height }) => {
         const progress = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1, 1);
         image.style.setProperty('--py', `${(-6 + progress * 6).toFixed(2)}%`);
@@ -254,7 +300,7 @@
       item.top = pageTop(item.layer.parentElement);
       item.height = item.layer.parentElement.offsetHeight;
     }));
-    scrollTasks.push(() => {
+    slowTasks.push(() => {
       headLayers.forEach(({ layer, top, height }) => {
         if (view.y < top + height) {
           layer.style.translate = `0 ${(Math.max(0, view.y - top) * 0.35).toFixed(1)}px`;
@@ -266,7 +312,9 @@
   // Surgeries page: the large drawing behind each chapter drifts with the scroll (--drift, from -1
   // to 1 as it crosses the screen) and, under a mouse, leans away from the pointer (--ax, --ay).
   const atmos = [...document.querySelectorAll('[data-atmo]')];
-  if (atmos.length && !reduceMotion.matches && 'ViewWatcher' in window) {
+  // (On touch screens the drawing stays in place: see .chapter__atmo in the stylesheet.)
+  const isTouchScreen = window.matchMedia('(hover: none)').matches;
+  if (atmos.length && !reduceMotion.matches && !isTouchScreen && 'ViewWatcher' in window) {
     const shownAtmos = new Set();
     const atmoBoxes = new Map(atmos.map((atmo) => [atmo, { top: 0, height: 0 }]));
     const atmoObserver = new ViewWatcher((entries) => {
@@ -284,7 +332,7 @@
       box.top = pageTop(atmo);
       box.height = atmo.offsetHeight;
     }));
-    scrollTasks.push(() => {
+    slowTasks.push(() => {
       shownAtmos.forEach((atmo) => {
         const { top, height } = atmoBoxes.get(atmo);
         const drift = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1.5, 1.5);
@@ -320,7 +368,13 @@
   const REVEAL_STAGGER_MAX = 3;
   const revealItems = [...document.querySelectorAll('[data-reveal], .footer-wordmark')];
   const revealAll = () => revealItems.forEach((item) => item.classList.add('is-visible'));
+  // What the first screen shows when the script comes stays as it was painted: nothing on it waits
+  // for the script to appear (titles, photos and parts of the page alike). What lies further is
+  // hidden from then on, out of sight, and revealed as it comes (site.css: .reveals-ready).
+  const isOnFirstScreen = (element) => element.getBoundingClientRect().top < window.innerHeight;
   if ('ViewWatcher' in window && !reduceMotion.matches) {
+    revealItems.filter(isOnFirstScreen).forEach((item) => item.classList.add('is-visible'));
+    root.classList.add('reveals-ready');
     const reveal = (items) => items.forEach((item, index) => {
       const hasOwnDelay = item.style.getPropertyValue('--reveal-delay') !== '';
       if (!hasOwnDelay) {
@@ -348,9 +402,9 @@
   // their animation (.is-arrived): an animation held at its end keeps each of them on a layer. A
   // word coming into focus has arrived when its sharp layer has; an opened photo, when its frame and
   // its picture have.
-  const ARRIVALS = new Set(['focus-in', 'hero-in', 'aperture-disc', 'aperture-disc-picture', 'aperture-band', 'aperture-band-picture']);
+  const ARRIVALS = new Set(['word-in', 'hero-in', 'aperture-disc', 'aperture-disc-picture', 'aperture-band', 'aperture-band-picture']);
   document.addEventListener('animationend', (event) => {
-    if (event.animationName === 'focus-sharp') {
+    if (event.animationName === 'word-sharp') {
       event.target.parentElement.classList.add('is-arrived');
     } else if (ARRIVALS.has(event.animationName)) {
       event.target.classList.add('is-arrived');
@@ -377,7 +431,8 @@
   // a blurred copy of itself over it: the copy shows first, then the sharp word while the copy goes
   // (site.css). Only opacities change, which the screen does by itself; a blur that changes is drawn
   // again by the browser at every frame. A title that has already begun when the script comes (the
-  // title of the page plays from the first paint) keeps its entrance, without copies.
+  // title of the page and that of the home page play from the first paint) keeps its entrance,
+  // without copies; another title already on the first screen stays as it was painted.
   const FOCUS_HOLDERS = '[data-focus] .w, .hero__title-main .letter, .team-photo__title, .team-photo__text';
   const hasBegun = (holder) => holder.getAnimations().some((animation) => animation.effect?.getComputedTiming().progress > 0);
   const addFocusCopy = (holder) => {
@@ -396,8 +451,14 @@
       const group = holder.closest('[data-focus], .hero__title-main') || holder;
       focusGroups.set(group, [...(focusGroups.get(group) || []), holder]);
     });
-    focusGroups.forEach((holders) => {
-      if (!holders.some(hasBegun)) {
+    focusGroups.forEach((holders, group) => {
+      const isLaterTitle = group.matches('[data-focus]') && !group.closest('.page-head');
+      if (isLaterTitle && isOnFirstScreen(group)) {
+        group.classList.add('is-focused');
+        holders.forEach((holder) => holder.classList.add('is-arrived'));
+      } else if (!hasBegun(holders[0])) {
+        // (The first word begins first: asking it alone spares asking the animations of every word,
+        // which made the browser work out the styles of each, while the page was starting.)
         holders.forEach(addFocusCopy);
       }
     });
@@ -408,8 +469,11 @@
   // the picture is held in a frame of its own that grows while the picture grows back by the inverse
   // amount, so that it seems to stay in place; only scales change, which the screen does by itself
   // (a cut that changes is drawn again by the browser at every frame). A disc a little larger than
-  // the diagonal of the photo cuts nothing once open.
-  const apertures = 'ViewWatcher' in window && !reduceMotion.matches ? [...document.querySelectorAll('[data-aperture]')] : [];
+  // the diagonal of the photo cuts nothing once open. A photo already on the first screen stays as
+  // it was painted; only the photos whose picture already fills their frame by itself
+  // ([data-parallax]) get the opening frame.
+  const canOpen = 'ViewWatcher' in window && !reduceMotion.matches;
+  const apertures = canOpen ? [...document.querySelectorAll('[data-aperture][data-parallax]')].filter((photo) => !isOnFirstScreen(photo)) : [];
   apertures.forEach((photo) => {
     const picture = photo.querySelector(':scope > picture');
     if (picture) {
@@ -419,14 +483,21 @@
       frame.append(picture);
     }
   });
-  const sizeApertures = () => apertures.forEach((photo) => {
-    const width = photo.offsetWidth;
-    const height = photo.offsetHeight;
-    photo.style.setProperty('--aperture-w', `${width}px`);
-    photo.style.setProperty('--aperture-h', `${height}px`);
-    photo.style.setProperty('--aperture-d', `${Math.ceil(Math.hypot(width, height) * 1.06)}px`);
-  });
-  sizeApertures();
+  // (All the sizes are read, then all written: read and written in turn, each photo had the browser
+  // lay the page out again. Measured once the page is laid out, with the other places (measure).)
+  const sizeApertures = () => {
+    const sizes = apertures.map((photo) => {
+      // The size as laid out, to the fraction of a pixel (its tilt does not count).
+      const { width: cssWidth, height: cssHeight } = getComputedStyle(photo);
+      return [parseFloat(cssWidth), parseFloat(cssHeight)];
+    });
+    apertures.forEach((photo, i) => {
+      const [width, height] = sizes[i];
+      photo.style.setProperty('--aperture-w', `${width}px`);
+      photo.style.setProperty('--aperture-h', `${height}px`);
+      photo.style.setProperty('--aperture-d', `${Math.ceil(Math.hypot(width, height) * 1.06)}px`);
+    });
+  };
   measureTasks.push(sizeApertures);
   playOnce('[data-aperture]', 'is-open', { rootMargin: '0px 0px 0px 0px' });
   // Home: the line joining the three steps of the consultation draws itself; on the intervention
@@ -484,7 +555,14 @@
       window.cancelAnimationFrame(fitFrame);
       fitFrame = window.requestAnimationFrame(fitGiants);
     };
-    window.addEventListener('resize', refit);
+    // (A new width only: a phone's bar of address folding away changes the height alone.)
+    let fitWidth = 0;
+    window.addEventListener('resize', () => {
+      if (window.innerWidth !== fitWidth) {
+        fitWidth = window.innerWidth;
+        refit();
+      }
+    });
     document.fonts?.ready.then(refit);
     new MutationObserver(refit).observe(document.head, { childList: true });
     new MutationObserver(refit).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-text-size'] });
@@ -858,15 +936,28 @@
     };
 
     const restPosition = () => ({ x: box.width * 0.32, y: box.height * 0.24 });
-    measureChart();
-    Object.assign(state, restPosition());
-    Object.assign(target, restPosition());
-    paint();
+    const placeLens = () => {
+      measureChart();
+      Object.assign(state, restPosition());
+      Object.assign(target, restPosition());
+      paint();
+    };
+    // Measured once the browser has laid out the page (its first report): measured at once, while the
+    // scripts were starting, it had the browser lay the whole page out early, a few hundred
+    // milliseconds on a phone.
     if ('ResizeObserver' in window) {
+      let isStarted = false;
       new ResizeObserver(() => {
+        if (!isStarted) {
+          isStarted = true;
+          placeLens();
+          return;
+        }
         measureChart();
         paint();
       }).observe(chart);
+    } else {
+      placeLens();
     }
 
     if (reduceMotion.matches) {
@@ -1140,14 +1231,18 @@
   const toc = document.querySelector('.toc');
   const articleBody = document.querySelector('.article-body');
   if (toc && articleBody) {
-    const article = { top: 0, height: 1 };
+    const article = { top: 0, height: 1, list: 0 };
+    const list = toc.querySelector('ol');
     measureTasks.push(() => {
       article.top = pageTop(articleBody);
       article.height = articleBody.offsetHeight || 1;
+      article.list = list?.offsetHeight || 0;
     });
-    scrollTasks.push(() => {
+    slowTasks.push(() => {
       const read = clamp((view.height * 0.4 - (article.top - view.y)) / article.height, 0, 1);
       toc.style.setProperty('--read', read.toFixed(3));
+      // The point of the reader, in pixels down the list (moved by translate, see the stylesheet).
+      toc.style.setProperty('--read-y', `${(read * article.list).toFixed(1)}px`);
     });
   }
 
@@ -1164,7 +1259,7 @@
       places.steps = steps.map(pageTop);
       places.stations = stations.map(pageTop);
     });
-    scrollTasks.push(() => {
+    slowTasks.push(() => {
       // The line reaches the point at 45 % of the height of the screen (in the page).
       const anchor = view.y + view.height * 0.45;
       const progress = clamp((anchor - places.top) / places.height, 0, 1);
@@ -1254,11 +1349,13 @@
         node.textContent = values[Math.min(step, values.length) - 1];
       });
       // The bar of the step fills from the start: a new step starts its own bar; the same step shown
-      // again (the schema back on screen, the play button) has its bar started again, which needs
-      // the browser to see it stopped first (a rare, forced layout).
-      if (isSameStep && schema.classList.contains('is-timing')) {
+      // again (the schema back on screen, the play button) has its bar started again, put back at
+      // the next frame (the browser has to see it stopped first; making it lay the page out at once
+      // for that happened as the schemas crossed the screen).
+      if (isSameStep && isPlaying && schema.classList.contains('is-timing')) {
         schema.classList.remove('is-timing');
-        void schema.offsetWidth;
+        window.requestAnimationFrame(() => schema.classList.toggle('is-timing', isPlaying));
+        return;
       }
       schema.classList.toggle('is-timing', isPlaying);
     };
@@ -1407,12 +1504,15 @@
       schema?.dispatchEvent(new CustomEvent('schema:goto', { detail: { step } }));
       onShow(step, isNew);
       // The bar of the step fills again from the start: a new step starts its own bar; the same
-      // step shown again has it started again (a rare, forced layout).
-      if (!isNew && root.classList.contains('is-timing')) {
+      // step shown again has it started again, put back at the next frame (making the browser lay
+      // the page out at once, to see it stopped, was done here as chapters crossed the screen).
+      const isTiming = isPlaying && isVisible;
+      if (!isNew && isTiming && root.classList.contains('is-timing')) {
         root.classList.remove('is-timing');
-        void root.offsetWidth;
+        window.requestAnimationFrame(() => root.classList.toggle('is-timing', isPlaying && isVisible));
+        return;
       }
-      root.classList.toggle('is-timing', isPlaying && isVisible);
+      root.classList.toggle('is-timing', isTiming);
     };
 
     const schedule = () => {

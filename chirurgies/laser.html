@@ -25,7 +25,7 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="../assets/stylesheets/site.css">
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css">
   <script src="../assets/scripts/view.js" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js" defer></script>
@@ -178,7 +178,7 @@
 
   <main id="contenu" data-op="laser">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span></div>
       <div class="container">
         <nav class="breadcrumb" aria-label="Fil d'Ariane">
           <ol>
@@ -347,7 +347,7 @@
     <section class="section section--flush-top" data-stars>
       <div class="container more">
         <a class="info-card" href="../telechargements#laser" data-reveal>
-          <span class="drawing drawing--optique" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span>
+          <span class="drawing drawing--optique" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span></span>
           <span class="info-card__text">
             <span class="info-card__kicker">Fiche d'information</span>
             <span class="info-card__title">Pour plus d'informations sur la chirurgie réfractive au laser</span>
@@ -366,7 +366,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

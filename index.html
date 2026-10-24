@@ -27,7 +27,7 @@
   <link rel="preload" href="assets/img/iris-poster.webp" as="image" type="image/webp" fetchpriority="high">
   <link rel="preload" href="assets/img/iris-polar.webp" as="image" type="image/webp">
   <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="assets/stylesheets/site.css">
+  <link rel="stylesheet" href="assets/stylesheets/site.min.css">
   <script src="assets/scripts/view.js" defer></script>
   <script src="assets/scripts/pictures.js" defer></script>
   <script src="assets/vendor/gsap/gsap.min.js" defer></script>
@@ -355,7 +355,7 @@
     </section>
 
     <section class="section section--night visit" data-stars aria-labelledby="visit-title">
-      <div class="drawing drawing--iris visit__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
+      <div class="drawing drawing--iris visit__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
       <div class="container">
         <div class="section-head">
           <div data-reveal>
@@ -653,7 +653,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

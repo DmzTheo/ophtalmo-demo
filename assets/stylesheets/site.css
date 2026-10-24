@@ -308,6 +308,7 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   isolation: isolate;
   margin-inline: var(--frame);
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: var(--c-night);
   color: #fff;
@@ -336,9 +337,11 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
 }
 
 /* Photo frames: the picture fills the frame, slightly taller so it can drift while scrolling. */
+/* (Cut with overflow: clip: for Firefox, what an overflow: hidden box cuts away is out of view.) */
 [data-parallax] {
   position: relative;
   overflow: hidden;
+  overflow: clip;
 }
 
 [data-parallax] > picture {
@@ -346,11 +349,13 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   inset: 0;
 }
 
+/* (site.js writes the drift ten times a second; the photo glides between two writes.) */
 [data-parallax] > picture img {
   width: 100%;
   height: 112%;
   object-fit: cover;
   transform: translateY(var(--py, -6%));
+  transition: transform 0.12s linear;
 }
 
 .split__media > picture {
@@ -374,10 +379,17 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   container-type: size;
 }
 
-/* (The drawing covers its frame whatever the size of the page; cut at its own box, it stays small
-   enough for Firefox to slide it on the graphics chip when it sweeps in: with its lines overflowing,
-   it was too large and was moved on the main thread at each frame of the arrival of the page.) */
-.drawing > svg {
+/* The drawing in its frame (build.js), of the size of the layer: the frame is what slides when the
+   drawing sweeps in (the drawing, larger than the screen, was too large for Firefox to slide it on the
+   graphics chip: it was moved on the main thread at each frame of the arrival of the page). */
+.drawing__frame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.drawing__frame > svg {
   --drawing-width: var(--drawing-w, max(100cqw, 160cqh));
   position: absolute;
   top: calc((100cqh - var(--drawing-width) * 0.625) * var(--drawing-y, 0.5));
@@ -394,7 +406,7 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   opacity: 1;
 }
 
-.drawing.is-live > svg {
+.drawing.is-live > .drawing__frame {
   visibility: hidden;
 }
 
@@ -727,6 +739,7 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   min-height: 56px;
   padding: 0.4rem 0.4rem 0.4rem 1.45rem;
   overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--btn-border);
   border-radius: var(--pill);
   background: var(--btn-bg);
@@ -860,6 +873,7 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
 .roll {
   display: inline-block;
   overflow: hidden;
+  overflow: clip;
   /* Clipped top and bottom (the second line waits below), never sideways. */
   overflow: visible clip;
   height: 1.25em;
@@ -1073,6 +1087,20 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
+/* On touch screens, a nearly opaque bar instead of a frosted glass: the page moving under it at every
+   frame of a scroll, the phone's graphics chip blurred it again at every frame. */
+@media (hover: none) {
+  .site-header.is-scrolled .site-header__bar {
+    background: rgba(246, 244, 239, 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
+    background: rgba(10, 20, 36, 0.96);
+  }
+}
+
 .site-header__progress {
   position: absolute;
   inset: auto 0 0;
@@ -1087,7 +1115,8 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   transform: scaleX(var(--progress, 0));
   transform-origin: left;
   opacity: 0;
-  transition: opacity 0.3s;
+  /* (site.js writes the scroll ten times a second; the bar glides between two writes.) */
+  transition: opacity 0.3s, transform 0.12s linear;
 }
 
 .site-header.is-scrolled .site-header__progress span {
@@ -1664,6 +1693,7 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   display: grid;
   min-height: max(660px, 100svh);
   overflow: hidden;
+  overflow: clip;
   background: var(--c-iris-bg);
   color: #fff;
 }
@@ -2407,6 +2437,7 @@ a.contact-band__item:hover .contact-band__value {
   position: relative;
   aspect-ratio: 16 / 11;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
 }
 
@@ -2704,6 +2735,7 @@ a.contact-band__item:hover .contact-band__value {
   position: absolute;
   inset: 7%;
   overflow: hidden;
+  overflow: clip;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, var(--c-light), var(--c-paper-2) 70%);
   box-shadow: inset 0 0 0 1px var(--c-line), inset 0 -30px 60px rgba(13, 26, 43, 0.06), var(--shadow-soft);
@@ -3287,7 +3319,6 @@ a.contact-band__item:hover .contact-band__value {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   text-transform: none;
-  transition: color 0.25s;
 }
 
 /* The pressure rises from step 2 on (steps are cumulative classes). */
@@ -3304,14 +3335,19 @@ a.contact-band__item:hover .contact-band__value {
   list-style: none;
 }
 
+/* The step playing lights up: its panel and its number fade in (::before layers whose opacity
+   changes, which the screen does by itself; a change of colours was worked out again at each frame,
+   at every step); the colour of the text changes at once, halfway. */
 .schema__step {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 2.4rem minmax(0, 1fr);
   align-items: start;
   gap: 0.9rem;
   width: 100%;
   overflow: hidden;
+  overflow: clip;
   padding: 0.75rem 0.9rem;
   border: 1px solid transparent;
   border-radius: var(--r);
@@ -3320,7 +3356,19 @@ a.contact-band__item:hover .contact-band__value {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.35s, border-color 0.35s, color 0.35s;
+  transition: background-color 0.35s, color 0s 0.17s;
+}
+
+.schema__step::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border: 1px solid var(--c-line);
+  border-radius: inherit;
+  background: var(--c-paper-2);
+  opacity: 0;
+  transition: opacity 0.35s;
 }
 
 .schema__step:hover {
@@ -3328,12 +3376,16 @@ a.contact-band__item:hover .contact-band__value {
 }
 
 .schema__step.is-active {
-  border-color: var(--c-line);
-  background: var(--c-paper-2);
   color: var(--c-ink);
 }
 
+.schema__step.is-active::before {
+  opacity: 1;
+}
+
 .schema__step-num {
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   width: 2.4rem;
@@ -3341,13 +3393,26 @@ a.contact-band__item:hover .contact-band__value {
   border: 1px solid var(--c-line-2);
   border-radius: 50%;
   font: 500 0.85rem/1 var(--font-mono);
-  transition: background-color 0.35s, color 0.35s, border-color 0.35s;
+  transition: color 0s 0.17s;
+}
+
+.schema__step-num::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: 50%;
+  background: var(--schema-accent);
+  opacity: 0;
+  transition: opacity 0.35s;
 }
 
 .schema__step.is-active .schema__step-num {
-  border-color: var(--schema-accent);
-  background: var(--schema-accent);
   color: #fff;
+}
+
+.schema__step.is-active .schema__step-num::before {
+  opacity: 1;
 }
 
 .schema__step-text {
@@ -4198,8 +4263,24 @@ html:not(.js) .schema__play {
 /* ---------- Surgery schemas: each step plays its own gesture ---------- */
 /* Lines drawn by a gesture (incisions, capsulorhexis, measure, marker, new vessels…) come in short
    parts (schemas.js, drawn), each shown when the pen reaches it: --t, when (share of the time of the
-   gesture), --u, the time to cross it. A gesture of duration D after a delay A shows its parts with
-   animation: schema-draw calc(D * var(--u)) linear calc(A + D * var(--t)) both. */
+   gesture), --u, the time to cross it, --p, the share of the rest of the gesture its fade takes. A
+   gesture gives its duration (--draw-d) and its delay (--draw-a); each part then fades in its share
+   and holds until the line is drawn, so that all the parts of a line end together (in Firefox, every
+   animation that ends costs the page a new paint, and every one still running is worked out again
+   at every paint): animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both. */
+.schema__svg .drawn > * {
+  --draw: calc(var(--draw-d, 1s) * (1 - var(--t, 0)));
+  --draw-at: calc(var(--draw-a, 0s) + var(--draw-d, 1s) * var(--t, 0));
+  --draw-ease: linear(0, 1 calc(var(--p, 1) * 100%), 1);
+}
+
+@supports not (animation-timing-function: linear(0, 1)) {
+  .schema__svg .drawn > * {
+    --draw: calc(var(--draw-d, 1s) * var(--u, 1));
+    --draw-ease: linear;
+  }
+}
+
 @keyframes schema-draw {
   from {
     opacity: 0;
@@ -4332,7 +4413,9 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .cut {
-  animation: schema-draw calc(0.7s * var(--u, 1)) linear calc(0.85s + 0.7s * var(--t, 0)) both;
+  --draw-d: 0.7s;
+  --draw-a: 0.85s;
+  animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 .schema__svg .rhexis-face {
@@ -4341,7 +4424,9 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-3:not(.is-step-4) .rhexis-face {
-  animation: schema-draw calc(2s * var(--u, 1)) linear calc(0.3s + 2s * var(--t, 0)) both;
+  --draw-d: 2s;
+  --draw-a: 0.3s;
+  animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 .schema__svg .forceps {
@@ -4604,7 +4689,9 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .pen {
-  animation: schema-draw calc(1.8s * var(--u, 1)) linear calc(0.2s + 1.8s * var(--t, 0)) both;
+  --draw-d: 1.8s;
+  --draw-a: 0.2s;
+  animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 .schema.is-step-2:not(.is-step-3) .lift-off .excision {
@@ -4678,7 +4765,9 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .measure-draw {
-  animation: schema-draw calc(1s * var(--u, 1)) linear calc(0.8s + 1s * var(--t, 0)) both;
+  --draw-d: 1s;
+  --draw-a: 0.8s;
+  animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 .schema__svg .pulse-ring {
@@ -5131,7 +5220,7 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .cut--side {
-  animation-delay: calc(1.85s + 0.7s * var(--t, 0));
+  --draw-a: 1.85s;
 }
 
 .schema__svg .rhexis {
@@ -5157,7 +5246,9 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-4:not(.is-step-5) .crack {
-  animation: schema-show calc(0.5s * var(--u, 1)) linear calc(0.1s + 0.5s * var(--t, 0)) both, schema-fade-out 0.4s 1.9s forwards;
+  --draw-d: 0.5s;
+  --draw-a: 0.1s;
+  animation: schema-show var(--draw) var(--draw-ease) var(--draw-at) both, schema-fade-out 0.4s 1.9s forwards;
 }
 
 .schema__svg .iol-spring {
@@ -5177,7 +5268,9 @@ html:not(.js) .schema__play {
 
 /* The incisions close: their line goes away from one end to the other. */
 .schema.is-step-6 .seal {
-  animation: schema-seal calc(1.3s * var(--u, 1)) linear calc(0.6s + 1.3s * var(--t, 0)) both;
+  --draw-d: 1.3s;
+  --draw-a: 0.6s;
+  animation: schema-seal var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 @keyframes schema-seal {
@@ -5436,8 +5529,9 @@ html:not(.js) .schema__play {
 }
 
 :is(.schema.is-step-2:not(.is-step-3) .draw-2, .schema.is-step-3:not(.is-step-4) .draw-3, .schema.is-step-4:not(.is-step-5) .draw-4, .schema.is-step-5:not(.is-step-6) .draw-5) {
-  animation: schema-draw calc(1.2s * var(--u, 1)) linear both;
-  animation-delay: calc(0.2s + var(--i, 0) * 0.1s + 1.2s * var(--t, 0));
+  --draw-d: 1.2s;
+  --draw-a: calc(0.2s + var(--i, 0) * 0.1s);
+  animation: schema-draw var(--draw) var(--draw-ease) var(--draw-at) both;
 }
 
 :is(.schema.is-step-4:not(.is-step-5) .slow-4, .schema.is-step-5:not(.is-step-6) .slow-5) {
@@ -5776,6 +5870,7 @@ html:not(.js) .schema__play {
   display: block;
   height: 4px;
   overflow: hidden;
+  overflow: clip;
   border-radius: 2px;
   background: var(--c-line-2);
 }
@@ -7204,6 +7299,7 @@ html:not(.js) .schema__play {
   position: relative;
   padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3.25rem);
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: var(--c-paper);
   box-shadow: inset 0 0 0 1px var(--c-line), var(--shadow-soft);
@@ -7347,8 +7443,14 @@ html:not(.js) .schema__play {
   stroke-width: 1.6;
 }
 
+/* The body and the housings: their fills, whole; their lines, in pieces that draw themselves
+   (phoropter.js, phoropter-draw). */
 .phoropter__body {
   fill: var(--c-light);
+  stroke: none;
+}
+
+.phoropter__body-line {
   stroke-width: 2;
 }
 
@@ -7364,6 +7466,7 @@ html:not(.js) .schema__play {
 
 .phoropter__housing {
   fill: var(--c-paper-2);
+  stroke: none;
 }
 
 .phoropter__rim {
@@ -7399,14 +7502,30 @@ html:not(.js) .schema__play {
   rotate: -120deg;
 }
 
-.js .phoropter[data-reveal] .phoropter__svg [pathLength] {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+/* Each line in 1.6 s, piece by piece (phoropter.js, pieces.js: --t, --u, --p), all the pieces of a
+   line ending together (as the vignettes: vg-draw). */
+.js .phoropter[data-reveal] .phoropter__piece {
+  opacity: 0;
 }
 
-.js .phoropter[data-reveal].is-visible .phoropter__svg [pathLength] {
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset 1.6s var(--ease-out) 0.15s;
+.js .phoropter[data-reveal].is-visible .phoropter__piece {
+  animation: phoropter-draw calc(1.6s * (1 - var(--t))) linear(0, 1 calc(var(--p) * 100%), 1) calc(0.15s + 1.6s * var(--t)) both;
+}
+
+@supports not (animation-timing-function: linear(0, 1)) {
+  .js .phoropter[data-reveal].is-visible .phoropter__piece {
+    animation: phoropter-draw calc(1.6s * var(--u)) linear calc(0.15s + 1.6s * var(--t)) both;
+  }
+}
+
+@keyframes phoropter-draw {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .phoropter__lens {
@@ -7430,6 +7549,7 @@ html:not(.js) .schema__play {
   display: grid;
   place-items: center;
   overflow: hidden;
+  overflow: clip;
   border-radius: 50%;
   background: #fff;
   box-shadow: inset 0 0 0 2px var(--c-ink), inset 0 10px 26px rgba(13, 26, 43, 0.16);
@@ -7613,9 +7733,9 @@ html:not(.js) .schema__play {
     transition: none;
   }
 
-  .js .phoropter[data-reveal] .phoropter__svg [pathLength] {
-    stroke-dashoffset: 0;
-    transition: none;
+  .js .phoropter[data-reveal] .phoropter__piece {
+    opacity: 1;
+    animation: none;
   }
 
   .phoropter.is-turning .phoropter__window::after {
@@ -7643,6 +7763,7 @@ html:not(.js) .schema__play {
   display: block;
   aspect-ratio: 1 / 1.08;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: var(--c-sand);
 }
@@ -7708,6 +7829,7 @@ html:not(.js) .schema__play {
   position: relative;
   padding: calc(var(--header-h) + clamp(2rem, 5vw, 4.5rem)) 0 clamp(3rem, 6vw, 6rem);
   overflow: hidden;
+  overflow: clip;
 }
 
 .page-head .drawing {
@@ -7767,11 +7889,17 @@ html:not(.js) .schema__play {
   height: 100%;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 1.2s var(--ease-out);
+  transition: opacity 1.2s var(--ease-out), translate 0.12s linear;
 }
 
 .living.is-live {
   opacity: 1;
+}
+
+/* The background of the heads goes up more slowly than the page (site.js writes it ten times a
+   second; the layer glides between two writes). */
+:is(.page-head, .glasses-hero) > .drawing {
+  transition: translate 0.12s linear;
 }
 
 
@@ -7791,10 +7919,12 @@ html:not(.js) .schema__play {
     animation: drawing-sweep 2.2s var(--ease-in-out) 0.1s both;
   }
 
-  .page-head .drawing > svg {
+  .page-head .drawing > .drawing__frame {
     animation: drawing-sweep-back 2.2s var(--ease-in-out) 0.1s both;
   }
 
+  /* (No taller than the screen: Firefox does not move on the graphics chip a frame taller than about
+     the screen, and the beam is only seen at the top of the page as it arrives.) */
   .page-head::after {
     content: "";
     position: absolute;
@@ -7802,6 +7932,8 @@ html:not(.js) .schema__play {
     bottom: 0;
     left: 0;
     width: 2px;
+    max-height: 100vh;
+    max-height: 100svh;
     background: linear-gradient(180deg, transparent, var(--beam, rgba(29, 79, 163, 0.55)) 22%, var(--beam, rgba(29, 79, 163, 0.55)) 78%, transparent);
     box-shadow: 0 0 32px 10px var(--beam-glow, rgba(29, 79, 163, 0.1));
     opacity: 0;
@@ -7952,6 +8084,7 @@ html:not(.js) .schema__play {
 .split__media {
   position: relative;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
 }
 
@@ -9198,6 +9331,7 @@ html:has(.chapter-nav) {
   max-width: none;
   height: calc(100% + 13px);
   overflow: hidden;
+  overflow: clip;
   fill: none;
   stroke: var(--chapter-accent);
   stroke-width: 2;
@@ -9449,7 +9583,8 @@ html:has(.chapter-nav) {
   translate: 0 calc(var(--drift, 0) * -120px);
   rotate: calc(var(--drift, 0) * var(--spin));
   transform: translate(calc(var(--ax, 0) * -46px), calc(var(--ay, 0) * -46px));
-  transition: transform 0.9s var(--ease-out);
+  /* (site.js writes the drift ten times a second; the drawing glides between two writes.) */
+  transition: transform 0.9s var(--ease-out), translate 0.12s linear, rotate 0.12s linear;
 }
 
 :is(.chapter--laser, .chapter--ivt) .chapter__atmo {
@@ -9613,6 +9748,57 @@ html:has(.chapter-nav) {
   }
 }
 
+/* Touch screens: the drawing behind the chapter appears whole (a fade, growing a little from its
+   centre) and stays in place: drawn line after line, each line on a layer of its own, and drifting
+   with the scroll, it kept the phone's graphics chip busy at every frame of the scroll (measured on a
+   mid-range phone: 79 frames a second on the surgeries page, 96 without its drawing in). The eye of
+   the folds still blinks once. */
+@media (hover: none) {
+  .chapter__atmo {
+    translate: none;
+    rotate: none;
+  }
+
+  .js .chapter__atmo svg {
+    opacity: 0;
+    scale: 0.96;
+  }
+
+  .js .chapter__atmo.is-drawn svg {
+    animation: atmo-appear 1.6s var(--ease-out) forwards;
+  }
+
+  .js .chapter__atmo.is-settled svg {
+    opacity: 1;
+    scale: none;
+  }
+
+  .js .chapter__atmo.is-drawn :is([pathLength], .atmo__dash, .atmo__shot, .atmo__grain) {
+    animation: none;
+  }
+
+  .js .chapter__atmo :is([pathLength], .atmo__dash) {
+    opacity: 1;
+    scale: none;
+  }
+
+  .js .chapter__atmo .atmo__shot {
+    opacity: 0.75;
+  }
+
+  .js .chapter__atmo .atmo__grain {
+    opacity: 0.55;
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+
+@keyframes atmo-appear {
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chapter__atmo {
     translate: none;
@@ -9630,6 +9816,13 @@ html:has(.chapter-nav) {
   .js .chapter__atmo .atmo__grain {
     opacity: 0.55;
     transform: translate(var(--dx), var(--dy));
+  }
+
+  .js .chapter__atmo svg,
+  .js .chapter__atmo.is-drawn svg {
+    animation: none;
+    opacity: 1;
+    scale: none;
   }
 }
 
@@ -9919,12 +10112,12 @@ html:has(.chapter-nav) {
   text-anchor: middle;
 }
 
+/* A route: a group of short pieces, which take its line (see where-draw). */
 .where-map__route {
   fill: none;
   stroke: var(--c-amber);
   stroke-width: 2.4;
   stroke-linecap: round;
-  stroke-dasharray: 1;
   transition: stroke-width 0.4s, opacity 0.4s;
 }
 
@@ -9958,21 +10151,29 @@ html:has(.chapter-nav) {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .js .where-map .where-map__route {
-    stroke-dashoffset: 1;
+  /* The routes draw themselves in 1.6 s, one after the other, piece by piece (chirurgies.html,
+     pieces.js: --t, --u, --p), all the pieces of a route ending together (as the vignettes:
+     vg-draw). */
+  .js .where-map .where-map__route > path {
+    opacity: 0;
   }
 
-  .js .where-map.is-drawn .where-map__route {
-    stroke-dashoffset: 0;
-    transition: stroke-dashoffset 1.6s var(--ease-in-out), stroke-width 0.4s, opacity 0.4s;
+  .js .where-map.is-drawn .where-map__route > path {
+    animation: where-draw calc(1.6s * (1 - var(--t))) linear(0, 1 calc(var(--p) * 100%), 1) calc(var(--route-at, 0s) + 1.6s * var(--t)) both;
+  }
+
+  @supports not (animation-timing-function: linear(0, 1)) {
+    .js .where-map.is-drawn .where-map__route > path {
+      animation: where-draw calc(1.6s * var(--u)) linear calc(var(--route-at, 0s) + 1.6s * var(--t)) both;
+    }
   }
 
   .js .where-map.is-drawn .where-map__route[data-route="hpp"] {
-    transition-delay: 0.35s, 0s, 0s;
+    --route-at: 0.35s;
   }
 
   .js .where-map.is-drawn .where-map__route[data-route="axium"] {
-    transition-delay: 0.7s, 0s, 0s;
+    --route-at: 0.7s;
   }
 
   .js .where-map .where-map__clinic {
@@ -9996,6 +10197,16 @@ html:has(.chapter-nav) {
 @keyframes where-arrive {
   from {
     scale: 0;
+  }
+}
+
+@keyframes where-draw {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
@@ -10046,6 +10257,7 @@ html:has(.chapter-nav) {
   margin-top: clamp(2.25rem, 4.5vw, 4rem);
   padding: clamp(2.25rem, 4.5vw, 3.75rem) clamp(1.75rem, 5vw, 4.5rem);
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: linear-gradient(125deg, var(--op-ink, var(--c-blue)), color-mix(in srgb, var(--op-ink, var(--c-blue)) 62%, #0d1a2b));
   color: #fff;
@@ -10211,6 +10423,7 @@ html:has(.chapter-nav) {
   gap: clamp(1.25rem, 3vw, 2.5rem);
   padding: clamp(1.5rem, 3.2vw, 2.5rem) clamp(1.5rem, 4vw, 3rem);
   overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--c-line);
   border-radius: var(--r-xl);
   background: var(--c-paper-2);
@@ -10476,10 +10689,15 @@ html:has(.chapter-nav) {
   opacity: 0.45;
   transform: scaleY(var(--read, 0));
   transform-origin: top;
+  transition: transform 0.12s linear;
 }
 
+/* (The point moves by translate, measured in pixels by site.js: placed with top, it made the browser
+   lay the list out again at each move.) */
 .toc ol::after {
-  top: calc(var(--read, 0) * 100%);
+  top: 0;
+  translate: 0 var(--read-y, 0px);
+  transition: translate 0.12s linear;
   width: 10px;
   height: 10px;
   margin: -5px 0 0 -4px;
@@ -10646,6 +10864,7 @@ ul.steps-nav,
   background: var(--op-ink, var(--c-blue));
   transform: scaleY(var(--fill, 0));
   transform-origin: top;
+  transition: transform 0.12s linear;
 }
 
 .journey__step {
@@ -10942,11 +11161,13 @@ ul.steps-nav,
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: color 0.3s;
 }
 
+/* (The colour glides under the pointer only: at each change of step, every 3 s, a gliding colour was
+   worked out again at every frame.) */
 .film__step:hover {
   color: rgba(255, 255, 255, 0.85);
+  transition: color 0.3s;
 }
 
 .film__step.is-active {
@@ -10958,6 +11179,7 @@ ul.steps-nav,
   order: -1;
   height: 3px;
   overflow: hidden;
+  overflow: clip;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.18);
 }
@@ -11591,11 +11813,21 @@ main[data-op="ivt"] {
   transform-origin: center;
 }
 
-/* Lines that draw themselves (vignettes.js, drawn): their short pieces appear one after the other
-   as the line reaches them, in the time --draw of the line, from --draw-at (a line grown by its
-   dashes was drawn again at every frame). */
+/* Lines that draw themselves (vignettes.js, pieces.js): their short pieces appear one after the
+   other as the line reaches them, in the time --draw of the line, from --draw-at (a line grown by
+   its dashes was drawn again at every frame). The animation of each piece lasts until the line is
+   drawn and fades in its first --p (linear()): in Firefox, every animation that ends costs the page
+   a new paint, so the pieces of a line end together; and every animation still running is worked
+   out again at every paint of the page, so none outlasts its line. (Without linear(), a fade each,
+   as long as the piece takes.) */
 .is-playing :is(.vg-year, .vg-check, .vg-profile, .vg-rim) > path {
-  animation: vg-draw calc(var(--b) * var(--draw)) linear calc(var(--draw-at) + var(--a) * var(--draw)) both;
+  animation: vg-draw calc(var(--draw) * (1 - var(--t))) linear(0, 1 calc(var(--p) * 100%), 1) calc(var(--draw-at) + var(--draw) * var(--t)) both;
+}
+
+@supports not (animation-timing-function: linear(0, 1)) {
+  .is-playing :is(.vg-year, .vg-check, .vg-profile, .vg-rim) > path {
+    animation: vg-draw calc(var(--draw) * var(--u)) linear calc(var(--draw-at) + var(--draw) * var(--t)) both;
+  }
 }
 
 @keyframes vg-draw {
@@ -12457,8 +12689,19 @@ main[data-op="ivt"] {
   background: rgba(255, 255, 255, 0.72);
   color: var(--c-ink);
   cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   transition: background-color 0.3s, border-color 0.3s, color 0.3s, scale 0.16s var(--ease-out);
+}
+
+/* (On touch screens no frosted glass over the scene, which is drawn again at every frame: a more
+   opaque button instead.) */
+@media (hover: none) {
+  .scene3d__play {
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 .scene3d__play[hidden] {
@@ -12494,6 +12737,7 @@ main[data-op="ivt"] {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  overflow: clip;
   pointer-events: none;
 }
 
@@ -12570,6 +12814,7 @@ main[data-op="ivt"] {
   max-width: 21rem;
   margin-top: clamp(1.5rem, 3vw, 2.5rem);
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-lg);
   background: radial-gradient(110% 80% at 50% 46%, #14253f 0%, var(--c-night) 72%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 28px 50px -34px rgba(13, 26, 43, 0.7);
@@ -12808,6 +13053,7 @@ main[data-op="ivt"] {
 
 .cabinet-block__photo {
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
 }
 
@@ -12969,6 +13215,7 @@ main[data-op="ivt"] {
 .map-card {
   position: relative;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: var(--c-sand);
   box-shadow: inset 0 0 0 1px var(--c-line);
@@ -13009,6 +13256,7 @@ main[data-op="ivt"] {
 
 .doctor-profile__media {
   overflow: hidden;
+  overflow: clip;
   aspect-ratio: 4 / 5;
   border-radius: var(--r-xl);
   background: var(--c-sand);
@@ -13050,6 +13298,7 @@ main[data-op="ivt"] {
   aspect-ratio: 16 / 7;
   min-height: 300px;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: var(--c-paper-2);
   box-shadow: inset 0 0 0 1px var(--c-line);
@@ -13114,13 +13363,13 @@ main[data-op="ivt"] {
 
   /* (The words come into focus as those of the titles: their blurred copy first, then the sharp
      words over it, site.js adding the copies; without them, the words simply appear.) */
-  .js .team-photo :is(.team-photo__title, .team-photo__text) {
+  .reveals-ready .team-photo:not(.is-visible) :is(.team-photo__title, .team-photo__text) {
     opacity: 0;
-    transition: opacity 0.6s var(--ease-out) 0.5s;
   }
 
   .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text) {
     opacity: 1;
+    transition: opacity 0.6s var(--ease-out) 0.5s;
   }
 
   .js .team-photo :is(.team-photo__title, .team-photo__text).has-focus-copy {
@@ -13133,12 +13382,12 @@ main[data-op="ivt"] {
   }
 
   .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text).has-focus-copy:not(.is-arrived) > .focus__sharp {
-    animation: focus-sharp 0.6s linear 0.5s both;
+    animation: word-sharp 0.6s linear 0.5s both;
   }
 
   .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text).has-focus-copy:not(.is-arrived) > .focus__soft {
     display: block;
-    animation: focus-soft 0.6s linear 0.5s both;
+    animation: word-soft 0.6s linear 0.5s both;
   }
 
   .js .team-photo__icon {
@@ -13735,17 +13984,25 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
      script hears of it), it rises into place, once, quickly; elements arriving together follow each
      other closely (site.js gives each its delay). Short, so that a section is there as soon as it is
      reached, and few elements are on the move at once while scrolling. Only opacity and position
-     change, which the screen does by itself. */
-  .js [data-reveal] {
+     change, which the screen does by itself. What the first screen shows does not wait for the
+     script: it stays as painted, and only what lies further is hidden, once the script is there to
+     reveal it (.reveals-ready, site.js). */
+  .reveals-ready [data-reveal]:not(.is-visible) {
     opacity: 0;
     transform: translateY(20px);
+  }
+
+  /* (A visual of the head of the page: it comes closer as it appears.) */
+  .reveals-ready [data-reveal="focus"]:not(.is-visible) {
+    transform: scale(1.04);
+  }
+
+  .reveals-ready [data-reveal].is-visible {
     transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-out);
     transition-delay: var(--reveal-delay, 0s);
   }
 
-  /* (A visual of the head of the page: it comes closer as it appears.) */
-  .js [data-reveal="focus"] {
-    transform: scale(1.04);
+  .reveals-ready [data-reveal="focus"].is-visible {
     transition: opacity 0.5s var(--ease-out), transform 0.65s var(--ease-out);
   }
 
@@ -13770,27 +14027,33 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
      copies (no script yet, or the title already playing when the script came), the words simply
      rise into place. The page title, always first on screen, starts with the first paint. */
   .hero__title-main .letter {
+    --rise: 0.12em;
     display: inline-block;
     opacity: 0;
     transform: translateY(0.12em);
-    animation: focus-in 1s var(--ease-out) both;
+    animation: word-in 1s var(--ease-out) both;
     animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
-  .js [data-focus] .w {
+  /* (Titles further down wait hidden only once the script is there to show them.) */
+  .reveals-ready [data-focus]:not(.is-focused) .w {
     opacity: 0;
     transform: translateY(0.22em);
   }
 
   .js [data-focus].is-focused .w,
   .js .page-head [data-focus] .w {
-    animation: focus-in 0.55s var(--ease-out) both;
+    animation: word-in 0.55s var(--ease-out) both;
     animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
   .js :is([data-focus] .w, .hero__title-main .letter).has-focus-copy {
     opacity: 1;
-    animation-name: focus-rise;
+  }
+
+  .js :is([data-focus].is-focused, .page-head [data-focus]) .w.has-focus-copy,
+  .js .hero__title-main .letter.has-focus-copy {
+    animation-name: word-rise;
   }
 
   .js [data-focus] .w.has-focus-copy:not(.is-arrived) > :is(.focus__sharp, .focus__soft),
@@ -13799,24 +14062,24 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   }
 
   .js :is([data-focus].is-focused, .page-head [data-focus]) .w.has-focus-copy:not(.is-arrived) > .focus__sharp {
-    animation: focus-sharp 0.55s linear both;
+    animation: word-sharp 0.55s linear both;
     animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
   .js :is([data-focus].is-focused, .page-head [data-focus]) .w.has-focus-copy:not(.is-arrived) > .focus__soft {
     display: block;
-    animation: focus-soft 0.55s linear both;
+    animation: word-soft 0.55s linear both;
     animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
   .js .hero__title-main .letter.has-focus-copy:not(.is-arrived) > .focus__sharp {
-    animation: focus-sharp 1s linear both;
+    animation: word-sharp 1s linear both;
     animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
   .js .hero__title-main .letter.has-focus-copy:not(.is-arrived) > .focus__soft {
     display: block;
-    animation: focus-soft 1s linear both;
+    animation: word-soft 1s linear both;
     animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
@@ -13825,6 +14088,11 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
      grows while the picture grows back by the inverse amount, so that it seems to stay in place
      (site.js adds the frame; keyframes below): only scales change, which the screen does by itself
      (a cut that changes would be drawn again at every frame). */
+  /* (Until it is open, around the opening shows the page, not the ground of the photo frame.) */
+  .js [data-aperture]:has(> .aperture:not(.is-arrived)) {
+    background: transparent;
+  }
+
   .js [data-aperture]:not([data-aperture="lid"]):not(.is-open) .aperture {
     scale: 0.32;
   }
@@ -13936,6 +14204,7 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   height: 112%;
   object-fit: cover;
   transform: translateY(var(--py, -6%));
+  transition: transform 0.12s linear;
 }
 
 /* Open, the frame no longer cuts anything. */
@@ -13974,8 +14243,13 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   }
 }
 
-/* A word without its blurred copy: it simply rises into place. */
-@keyframes focus-in {
+/* A word without its blurred copy: it simply rises into place (from below by --rise). */
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise, 0.22em));
+  }
+
   to {
     opacity: 1;
     transform: none;
@@ -13984,13 +14258,17 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 
 /* A word with its copy: the word rises; its blurred copy shows first, then the sharp word over it
    while the copy goes (the opacities follow the ease-out curve of the site). */
-@keyframes focus-rise {
+@keyframes word-rise {
+  from {
+    transform: translateY(var(--rise, 0.22em));
+  }
+
   to {
     transform: none;
   }
 }
 
-@keyframes focus-soft {
+@keyframes word-soft {
   0% { opacity: 0; }
   3% { opacity: 0.264; }
   6% { opacity: 0.51; }
@@ -14004,7 +14282,7 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   100% { opacity: 0; }
 }
 
-@keyframes focus-sharp {
+@keyframes word-sharp {
   0% { opacity: 0; }
   3% { opacity: 0; }
   6% { opacity: 0.068; }
@@ -14204,16 +14482,18 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   }
 }
 
-/* Drawn icons: their lines are traced as they come on screen, one after the other (each shape is
-   measured as 1, see the icons in build.js). Invisible until traced, so that round line ends do not
-   show as dots. */
+/* Drawn icons: their lines come as the icon reaches the screen, one after the other, each appearing
+   and growing a little from its centre (opacities and scales, which the screen does by itself; lines
+   traced along their length were drawn again by the browser at every frame, often several icons at
+   once in the middle of a scroll). */
 @media (prefers-reduced-motion: no-preference) {
   .js [data-draw] .icon > * {
     opacity: 0;
-    stroke-dasharray: 1 1;
-    stroke-dashoffset: 1;
-    transition: stroke-dashoffset 1.1s var(--ease-in-out), opacity 0.15s;
-    transition-delay: calc(var(--draw-delay, 0.15s) + var(--s, 0) * 0.14s);
+    scale: 0.6;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: opacity 0.45s var(--ease-out), scale 0.6s var(--ease-out);
+    transition-delay: calc(var(--draw-delay, 0.15s) + var(--s, 0) * 0.12s);
   }
 
   .js [data-draw] .icon > :nth-child(2) { --s: 1; }
@@ -14224,7 +14504,7 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 
   .js [data-draw].is-drawn .icon > * {
     opacity: 1;
-    stroke-dashoffset: 0;
+    scale: 1;
   }
 }
 
@@ -14403,11 +14683,12 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
     visibility: hidden;
   }
 
-  .js .lines__text .text-lines {
+  /* (The text is the block itself or lies in it.) */
+  .js .lines .text-lines {
     transform: translateY(110%);
   }
 
-  .js .lines.is-rising .lines__text .text-lines {
+  .js .lines.is-rising .text-lines {
     animation: line-rise 0.6s var(--ease-out) both;
     animation-delay: calc((var(--line, 1) - 1) * 50ms);
   }
@@ -14577,7 +14858,9 @@ main[data-patho="dmla"] .page-head .page-title,
 /* The photo runs to the edge of the screen; the word "Lunettes" fills its column. */
 .glasses-hero {
   position: relative;
+  display: flow-root;
   overflow: hidden;
+  overflow: clip;
   background: var(--c-sand);
 }
 
@@ -14760,12 +15043,18 @@ main[data-patho="dmla"] .page-head .page-title,
   font-weight: 700;
 }
 
-/* The frame is drawn line by line (each line measured as 1 in trialframe.js), its degrees appear,
-   then the trial lenses slide in and the cylinder searches its axis before settling on it. */
+/* The frame is drawn line by line, its degrees appear, then the trial lenses slide in and the
+   cylinder searches its axis before settling on it. Each line draws itself in 1.4 s, piece by piece
+   (trialframe.js, pieces.js: --t, --u, --p), all the pieces of a line ending together (as the
+   vignettes: vg-draw). */
 .trial :is(.trial__line, .trial__ring, .trial__tick) {
-  stroke-dasharray: 1 1;
-  stroke-dashoffset: 1;
-  animation: trial-draw 1.4s var(--ease-in-out) var(--draw-at, 0.15s) both;
+  animation: trial-draw calc(1.4s * (1 - var(--t))) linear(0, 1 calc(var(--p) * 100%), 1) calc(var(--draw-at, 0.15s) + 1.4s * var(--t)) both;
+}
+
+@supports not (animation-timing-function: linear(0, 1)) {
+  .trial :is(.trial__line, .trial__ring, .trial__tick) {
+    animation: trial-draw calc(1.4s * var(--u)) linear calc(var(--draw-at, 0.15s) + 1.4s * var(--t)) both;
+  }
 }
 
 .trial .trial__ring--inner {
@@ -14790,8 +15079,8 @@ main[data-patho="dmla"] .page-head .page-title,
 }
 
 @keyframes trial-draw {
-  to {
-    stroke-dashoffset: 0;
+  from {
+    opacity: 0;
   }
 }
 
@@ -14805,6 +15094,7 @@ main[data-patho="dmla"] .page-head .page-title,
 @media (max-width: 700px) {
   .glasses-hero__frame {
     overflow: hidden;
+    overflow: clip;
     padding-inline: 0;
   }
 

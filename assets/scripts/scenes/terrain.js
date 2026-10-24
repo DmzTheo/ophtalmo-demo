@@ -321,11 +321,31 @@ export function create(THREE, kit) {
   let width = 1;
   let height = 1;
   const projected = new THREE.Vector3();
-  const placeLabels = (reveal) => {
+  // The names follow the map ten times a second at most once they have appeared (the map turns so
+  // slowly that a name moves less than a pixel between two writes), at every frame while the pointer
+  // leans the map; a name that has not moved is not written again. (Written at every frame, they had
+  // the whole page drawn again at every frame: a third of the work of a phone at rest on this page.)
+  let lastPlaced = -Infinity;
+  const placeLabels = (reveal, isLeaning) => {
+    const now = performance.now();
+    if (reveal >= 1 && !isLeaning && now - lastPlaced < 100) {
+      return;
+    }
+    lastPlaced = now;
     labels.forEach((label) => {
       projected.copy(label.at()).project(camera);
-      label.element.style.transform = `translate(${((projected.x + 1) / 2) * width}px, ${((1 - projected.y) / 2) * height}px) translate(-50%, -100%)`;
-      label.element.style.opacity = String(reveal);
+      const x = ((projected.x + 1) / 2) * width;
+      const y = ((1 - projected.y) / 2) * height;
+      const hasMoved = !(Math.abs(x - label.x) < 0.3 && Math.abs(y - label.y) < 0.3);
+      if (hasMoved) {
+        label.x = x;
+        label.y = y;
+        label.element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      }
+      if (reveal !== label.reveal) {
+        label.reveal = reveal;
+        label.element.style.opacity = String(reveal);
+      }
     });
   };
 
@@ -392,7 +412,7 @@ export function create(THREE, kit) {
     const isTravelling = time > 3.6;
     traveller.material.opacity = isTravelling ? 1 : 0;
     travellerRing.material.opacity = isTravelling ? 0.7 : 0;
-    placeLabels(smooth(2.6, 3.4, time));
+    placeLabels(smooth(2.6, 3.4, time), pointer.over > 0.01);
     return false;
   };
 

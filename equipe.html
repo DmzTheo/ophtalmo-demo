@@ -25,7 +25,7 @@
   <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="assets/stylesheets/site.css">
+  <link rel="stylesheet" href="assets/stylesheets/site.min.css">
   <script src="assets/scripts/view.js" defer></script>
   <script src="assets/scripts/pictures.js" defer></script>
   <script src="assets/vendor/gsap/gsap.min.js" defer></script>
@@ -137,7 +137,7 @@
 
   <main id="contenu">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
       <div class="container page-head__grid page-head__grid--single">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -223,7 +223,7 @@
           </li>
         </ol>
         <figure class="team-photo" data-reveal>
-          <div class="drawing drawing--iris" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
+          <div class="drawing drawing--iris" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
           <div class="team-photo__inner">
             <span class="team-photo__icon"><svg class="icon icon--camera" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle pathLength="1" cx="12" cy="13" r="3"/></svg></span>
             <p class="team-photo__title">La photo de l'équipe arrive prochainement</p>
@@ -235,7 +235,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

@@ -25,7 +25,7 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="../assets/stylesheets/site.css">
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css">
   <script src="../assets/scripts/view.js" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js" defer></script>
@@ -178,7 +178,7 @@
 
   <main id="contenu" data-op="ivt">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/retine.svg#d"/></svg></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/retine.svg#d"/></svg></span></div>
       <div class="container">
         <nav class="breadcrumb" aria-label="Fil d'Ariane">
           <ol>
@@ -234,7 +234,7 @@
     <path d="M159 209.5Q139.9 241.1 148.2 274.5L150.9 275.4Q152.7 244.8 165.8 214.9ZM159 390.5Q139.9 358.9 148.2 325.5L150.9 324.6Q152.7 355.2 165.8 385.1Z" class="fill part-iris"/>
     <path d="M166.2 228.8A150 150 0 0 0 166.2 371.3A78 78 0 0 0 166.2 228.8Z" class="fill part-lens"/><path d="M171.6 255.8A93 93 0 0 0 171.6 344.2A48.4 48.4 0 0 0 171.6 255.8Z" class="thin"/><path d="M175.8 277.2A48 48 0 0 0 175.8 322.8A25 25 0 0 0 175.8 277.2Z" class="thin"/>
     <g class="until-1 drops"><path d="M70.2 165q4 7 0 10q-4 -3 0 -10Z" class="drop" style="--i:0"/><path d="M88.2 165q4 7 0 10q-4 -3 0 -10Z" class="drop" style="--i:1"/></g>
-    <g class="from-2"><g class="drawn"><path d="M131.1 394.3C133.2 398.1 135.4 401.7 137.7 405.3" class="accent measure-draw" style="--t:0.000;--u:0.046"/><path d="M137.7 405.3C140.1 409 142.5 412.5 145.1 415.9" class="accent measure-draw" style="--t:0.046;--u:0.053"/><path d="M145.1 415.9C147.7 419.4 150.4 422.7 153.2 426" class="accent measure-draw" style="--t:0.100;--u:0.068"/><path d="M153.2 426C156 429.3 158.9 432.4 161.9 435.5" class="accent measure-draw" style="--t:0.168;--u:0.107"/><path d="M161.9 435.5C164.9 438.6 168 441.5 171.2 444.4" class="accent measure-draw" style="--t:0.274;--u:0.726"/></g><circle cx="180.2" cy="434.3" r="3.4" class="dot-accent"/><g class="until-2"><circle cx="180.2" cy="434.3" r="9" class="pulse-ring"/><g class="caliper"><path d="M131.1 394.3L108.1 453.9L171.2 444.4" class="instrument"/><circle cx="108.1" cy="453.9" r="3.4" class="dot-ink"/></g></g></g>
+    <g class="from-2"><g class="drawn"><path d="M131.1 394.3C133.2 398.1 135.4 401.7 137.7 405.3" class="accent measure-draw" style="--t:0.000;--u:0.046;--p:0.046"/><path d="M137.7 405.3C140.1 409 142.5 412.5 145.1 415.9" class="accent measure-draw" style="--t:0.046;--u:0.053;--p:0.056"/><path d="M145.1 415.9C147.7 419.4 150.4 422.7 153.2 426" class="accent measure-draw" style="--t:0.100;--u:0.068;--p:0.076"/><path d="M153.2 426C156 429.3 158.9 432.4 161.9 435.5" class="accent measure-draw" style="--t:0.168;--u:0.107;--p:0.128"/><path d="M161.9 435.5C164.9 438.6 168 441.5 171.2 444.4" class="accent measure-draw" style="--t:0.274;--u:0.726;--p:1.000"/></g><circle cx="180.2" cy="434.3" r="3.4" class="dot-accent"/><g class="until-2"><circle cx="180.2" cy="434.3" r="9" class="pulse-ring"/><g class="caliper"><path d="M131.1 394.3L108.1 453.9L171.2 444.4" class="instrument"/><circle cx="108.1" cy="453.9" r="3.4" class="dot-ink"/></g></g></g>
     <g class="from-3 until-3"><g class="needle-in" style="--nx:-24px;--ny:26.9px"><path d="M130.3 490.3L250.1 356" class="instrument"/><g class="plunger" style="--px:7px;--py:-7.8px"><path d="M128.3 492.6L100.3 523.9" class="instrument-thick"/></g></g><circle cx="250.1" cy="356" r="8.3" class="fluid drop-grow"/></g>
     <g class="from-4 until-4"><g class="cloud-grow" style="transform-origin:250.1px 356px"><ellipse cx="357" cy="328" rx="97.5" ry="54" class="drug-cloud" transform="rotate(-20 357 328)"/></g><g class="march fluid-line" style="--route:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--n:17"><path d="M-1 0H1" style="--k:0"/><path d="M-1 0H1" style="--k:1"/><path d="M-1 0H1" style="--k:2"/><path d="M-1 0H1" style="--k:3"/><path d="M-1 0H1" style="--k:4"/><path d="M-1 0H1" style="--k:5"/><path d="M-1 0H1" style="--k:6"/><path d="M-1 0H1" style="--k:7"/><path d="M-1 0H1" style="--k:8"/><path d="M-1 0H1" style="--k:9"/><path d="M-1 0H1" style="--k:10"/><path d="M-1 0H1" style="--k:11"/><path d="M-1 0H1" style="--k:12"/><path d="M-1 0H1" style="--k:13"/><path d="M-1 0H1" style="--k:14"/><path d="M-1 0H1" style="--k:15"/><path d="M-1 0H1" style="--k:16"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:0"><circle cx="0" cy="0" r="2.6" class="fluid"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:1"><circle cx="0" cy="0" r="2.6" class="fluid"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:2"><circle cx="0" cy="0" r="2.6" class="fluid"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:3"><circle cx="0" cy="0" r="2.6" class="fluid"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:4"><circle cx="0" cy="0" r="2.6" class="fluid"/></g><g class="drug-grain" style="offset-path:path('M250.1 356C262.2 351.6 292.9 337.8 322.5 330C352.1 322.2 410.4 312.5 427.9 309');--i:5"><circle cx="0" cy="0" r="2.6" class="fluid"/></g></g>
     <g class="from-5"><circle cx="463.9" cy="300" r="13.5" class="dot-sun"/><circle cx="463.9" cy="300" r="21" class="burst burst--5"/></g>
@@ -350,7 +350,7 @@
     <section class="section section--flush-top" data-stars>
       <div class="container more">
         <a class="info-card" href="../telechargements#ivt" data-reveal>
-          <span class="drawing drawing--optique" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span>
+          <span class="drawing drawing--optique" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span></span>
           <span class="info-card__text">
             <span class="info-card__kicker">Fiche d'information</span>
             <span class="info-card__title">Pour plus d'informations sur les injections intra-vitréennes</span>
@@ -369,7 +369,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

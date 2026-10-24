@@ -600,8 +600,9 @@
   // gives two frames closer together (Firefox on a computer: one in a few hundred), and such a lone
   // pair made every frame look late, the iris drawn coarser for nothing. Late: half again that time;
   // a frame held more than six times as long is the page at work (a script, an image), not the iris
-  // drawn too finely, and does not count. Too many late frames and the iris is drawn a step less
-  // finely; five quiet seconds in a row and it is drawn finer again.
+  // drawn too finely, and does not count, unless such pauses fill most of the second. Too many late
+  // frames and the iris is drawn a step less finely; five quiet seconds in a row and it is drawn
+  // finer again.
   const adapt = (interval, now) => {
     if (now < quality.settleUntil || document.readyState !== 'complete') {
       return;
@@ -614,8 +615,9 @@
     quality.shortest = [...quality.shortest.slice(-4), Math.max(4, sorted[Math.floor(WINDOW / 10)])];
     const refresh = Math.min(...quality.shortest);
     const late = quality.intervals.filter((each) => each > refresh * 1.45 && each < refresh * 6).length;
+    const held = quality.intervals.filter((each) => each >= refresh * 6).length;
     quality.intervals = [];
-    const isStruggling = late > WINDOW * 0.2;
+    const isStruggling = late > WINDOW * 0.2 || held > WINDOW * 0.5;
     const isEasy = late < WINDOW * 0.03;
     quality.easyWindows = isEasy ? quality.easyWindows + 1 : 0;
     if (isStruggling && quality.scale > MIN_SCALE) {
@@ -629,13 +631,16 @@
     }
   };
 
-  const frame = () => {
+  // The time of a frame is the one the browser gives it (the same for every script drawing in that
+  // frame), not the moment this function happens to run: the scripts that draw before it in a frame
+  // take more or less time, and read that way, the beam and the dust moved by fits and starts.
+  const frame = (timestamp) => {
     if (isResting()) {
       isRunning = false;
       return;
     }
-    const now = performance.now() / 1000;
-    const interval = now - last;
+    const now = (Number.isFinite(timestamp) ? timestamp : performance.now()) / 1000;
+    const interval = Math.max(0, now - last);
     const dt = Math.min(0.05, interval);
     adapt(interval * 1000, now);
     last = now;
@@ -713,10 +718,10 @@
   };
 
   // ---------- Start ----------
-  // The iris is decoded aside (decode, createImageBitmap) while the programs compile. Its first frames are
-  // then drawn while the canvas is still clear: the graphics chip readies its textures and programs
-  // meanwhile, a hitch the eye showed as it came in. The canvas fades in over the poster once frames
-  // come at the pace of the screen (the frame loop), the drawing as soon as both are ready.
+  // The iris is decoded aside (decode, createImageBitmap) while the programs compile. Its first
+  // frames are then drawn while the canvas is still clear: the graphics chip readies its textures and
+  // programs meanwhile, a hitch the eye showed as it came in. The canvas fades in over the poster once
+  // frames come at the pace of the screen (the frame loop), the drawing as soon as both are ready.
   const irisLoaded = new Promise((resolve, reject) => {
     image.addEventListener('load', resolve, { once: true });
     image.addEventListener('error', reject, { once: true });

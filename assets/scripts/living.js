@@ -253,6 +253,7 @@
       canvas.width = Math.max(1, Math.round(width * dpr));
       canvas.height = Math.max(1, Math.round(height * dpr));
       scene = make({ width, height, rand: seeded(Number(canvas.dataset.livingSeed) || 11) });
+      resizeWidth = window.innerWidth;
       wake();
     };
 
@@ -281,8 +282,15 @@
         wake();
       });
     }
+    // (On a phone, only a new width rebuilds: its bar of address folding away as the page scrolls
+    // changes the height of the window alone, not the size of the head.)
     let resizeTimer = 0;
+    let resizeWidth = 0;
     window.addEventListener('resize', () => {
+      if (window.innerWidth === resizeWidth && !finePointer.matches) {
+        return;
+      }
+      resizeWidth = window.innerWidth;
       window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         if (scene) {

@@ -10,8 +10,15 @@
 (() => {
   const watchers = new Set();
   const places = new Map();
-  let scrollY = window.scrollY;
-  let viewHeight = window.innerHeight;
+  // Elements not measured yet: measured all together at the next frame, once the browser has laid out
+  // the page (measuring each as it comes made the browser lay the page out early, while the scripts
+  // of the page were still starting: some 190 ms on a computer, much more on a phone). The scroll
+  // position is read then too, for the same reason.
+  const unmeasured = new Set();
+  let scrollY = 0;
+  // (The size of the window too: reading it makes Firefox lay the page out at once.)
+  let viewHeight = 0;
+  let viewWidth = 0;
   let frame = 0;
 
   // The place of an element in the page as laid out (its own transforms and those of its parents
@@ -36,6 +43,8 @@
   const measure = () => {
     scrollY = window.scrollY;
     viewHeight = window.innerHeight;
+    viewWidth = window.innerWidth;
+    unmeasured.clear();
     watchers.forEach((watcher) => watcher.targets.forEach((state, element) => places.set(element, placeOf(element))));
     check();
   };
@@ -49,8 +58,19 @@
     return () => [toPixels(top), toPixels(bottom)];
   };
 
+  // The scroll position is read once a frame, here, rather than at each scroll event: reading it
+  // makes Firefox bring the styles of the page up to date at once, in the middle of the event.
   const check = () => {
     frame = 0;
+    scrollY = window.scrollY;
+    if (!viewHeight) {
+      viewHeight = window.innerHeight;
+      viewWidth = window.innerWidth;
+    }
+    if (unmeasured.size) {
+      unmeasured.forEach((element) => places.set(element, placeOf(element)));
+      unmeasured.clear();
+    }
     watchers.forEach((watcher) => watcher.check());
   };
   const schedule = () => {
@@ -59,11 +79,19 @@
     }
   };
 
-  window.addEventListener('scroll', () => {
-    scrollY = window.scrollY;
-    schedule();
-  }, { passive: true });
-  window.addEventListener('resize', measure);
+  window.addEventListener('scroll', schedule, { passive: true });
+  // A phone's bar of address folding away as the page scrolls only changes the height of the screen:
+  // the places in the page stay the same, only what is on screen is checked again. A new width (a
+  // turned phone, a resized window) measures everything again.
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === viewWidth) {
+      viewHeight = window.innerHeight;
+      schedule();
+      return;
+    }
+    viewWidth = window.innerWidth;
+    measure();
+  });
   // The page or a watched element changing size (fonts, an opened answer, a part of the page drawn
   // when it comes near): the places are measured again, after the layout, when it costs nothing.
   const sizes = 'ResizeObserver' in window ? new ResizeObserver(measure) : null;
@@ -87,7 +115,7 @@
       }
       // A new element is reported once in any case, as IntersectionObserver does.
       this.targets.set(element, { isNew: true, isIntersecting: false, index: -1 });
-      places.set(element, placeOf(element));
+      unmeasured.add(element);
       sizes?.observe(element);
       schedule();
     }
