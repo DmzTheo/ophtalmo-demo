@@ -145,25 +145,40 @@
   });
 
   // ---------- Scroll: header, progress, parallax, journeys ----------
+  // A frame of scroll only writes. The scroll offset is read when the scroll event comes, and the
+  // places of the elements are measured once, then again only when the page changes size (fonts,
+  // an opened answer, a turned phone): a frame never makes the browser lay the page out again in the
+  // middle of its work, which is what made the scroll stutter on phones.
   const progressBar = document.querySelector('[data-progress]');
   const scrollTasks = [];
-  let lastScrollY = window.scrollY;
+  const measureTasks = [];
+  const view = { y: window.scrollY, height: window.innerHeight, maxScroll: 0 };
+  let lastScrollY = view.y;
+  // The top of an element in the page, as laid out (the transforms it may carry do not count).
+  const pageTop = (element) => {
+    let top = 0;
+    for (let node = element; node; node = node.offsetParent) {
+      top += node.offsetTop;
+    }
+    return top;
+  };
 
   scrollTasks.push(() => {
-    const y = window.scrollY;
-    const maxScroll = root.scrollHeight - window.innerHeight;
+    const { y, maxScroll } = view;
     progressBar?.style.setProperty('--progress', maxScroll > 0 ? (y / maxScroll).toFixed(4) : '0');
     header.classList.toggle('is-scrolled', y > 8);
 
     const delta = y - lastScrollY;
     const isNearTop = y < 240;
-    const isMenuOpen = root.classList.contains('is-menu-open');
-    const hasFocusInside = header.contains(document.activeElement) && document.activeElement !== document.body;
-    const hasOpenDropdown = Boolean(header.querySelector('.dropdown__menu:not([hidden])'));
-    const canHide = !isNearTop && !isMenuOpen && !hasFocusInside && !hasOpenDropdown;
-    if (delta > 6 && canHide) {
-      header.classList.add('is-hidden');
-    } else if (delta < -6 || isNearTop) {
+    const isHidden = header.classList.contains('is-hidden');
+    if (delta > 6 && !isHidden && !isNearTop) {
+      const isMenuOpen = root.classList.contains('is-menu-open');
+      const hasFocusInside = header.contains(document.activeElement) && document.activeElement !== document.body;
+      const hasOpenDropdown = Boolean(header.querySelector('.dropdown__menu:not([hidden])'));
+      if (!isMenuOpen && !hasFocusInside && !hasOpenDropdown) {
+        header.classList.add('is-hidden');
+      }
+    } else if ((delta < -6 || isNearTop) && isHidden) {
       header.classList.remove('is-hidden');
     }
     if (Math.abs(delta) > 6) {
@@ -182,43 +197,67 @@
       window.requestAnimationFrame(runScrollTasks);
     }
   };
-  window.addEventListener('scroll', requestScrollTasks, { passive: true });
-  window.addEventListener('resize', requestScrollTasks);
+  const measure = () => {
+    view.y = window.scrollY;
+    view.height = window.innerHeight;
+    view.maxScroll = Math.max(0, root.scrollHeight - view.height);
+    measureTasks.forEach((task) => task());
+    requestScrollTasks();
+  };
+  window.addEventListener('scroll', () => {
+    view.y = window.scrollY;
+    requestScrollTasks();
+  }, { passive: true });
+  window.addEventListener('resize', measure);
+  // The page changing size (and the first layout) measures again; the observer reports after the
+  // layout, when reading it costs nothing.
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(measure).observe(root);
+  } else {
+    window.addEventListener('load', measure);
+    window.requestAnimationFrame(measure);
+  }
 
   // Photos drift slightly inside their frame while scrolling (only those on screen are updated).
   if (!reduceMotion.matches && 'IntersectionObserver' in window) {
+    const frames = [...document.querySelectorAll('[data-parallax]')].map((frame) => ({ frame, image: frame.querySelector('img') || frame, top: 0, height: 0 }));
     const visibleFrames = new Set();
     const frameObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
+        const item = frames.find((each) => each.frame === entry.target);
         if (entry.isIntersecting) {
-          visibleFrames.add(entry.target);
+          visibleFrames.add(item);
         } else {
-          visibleFrames.delete(entry.target);
+          visibleFrames.delete(item);
         }
       });
       requestScrollTasks();
     });
-    document.querySelectorAll('[data-parallax]').forEach((frame) => frameObserver.observe(frame));
+    frames.forEach(({ frame }) => frameObserver.observe(frame));
+    measureTasks.push(() => frames.forEach((item) => {
+      item.top = pageTop(item.frame);
+      item.height = item.frame.offsetHeight;
+    }));
     scrollTasks.push(() => {
-      const viewport = window.innerHeight;
-      visibleFrames.forEach((frame) => {
-        const rect = frame.getBoundingClientRect();
-        const progress = clamp((rect.top + rect.height / 2 - viewport / 2) / viewport, -1, 1);
-        frame.style.setProperty('--py', `${(-6 + progress * 6).toFixed(2)}%`);
+      visibleFrames.forEach(({ image, top, height }) => {
+        const progress = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1, 1);
+        image.style.setProperty('--py', `${(-6 + progress * 6).toFixed(2)}%`);
       });
     });
   }
 
   // Heads of the pages: their background (drawing or living scene) goes up more slowly than the
   // page, as if further away.
-  const headLayers = [...document.querySelectorAll('.page-head > :is(.drawing, .living), .glasses-hero > .drawing')];
+  const headLayers = [...document.querySelectorAll('.page-head > :is(.drawing, .living), .glasses-hero > .drawing')].map((layer) => ({ layer, top: 0, height: 0 }));
   if (headLayers.length && !reduceMotion.matches) {
+    measureTasks.push(() => headLayers.forEach((item) => {
+      item.top = pageTop(item.layer.parentElement);
+      item.height = item.layer.parentElement.offsetHeight;
+    }));
     scrollTasks.push(() => {
-      const y = window.scrollY;
-      headLayers.forEach((layer) => {
-        const head = layer.parentElement;
-        if (y < head.offsetTop + head.offsetHeight) {
-          layer.style.translate = `0 ${(Math.max(0, y - head.offsetTop) * 0.35).toFixed(1)}px`;
+      headLayers.forEach(({ layer, top, height }) => {
+        if (view.y < top + height) {
+          layer.style.translate = `0 ${(Math.max(0, view.y - top) * 0.35).toFixed(1)}px`;
         }
       });
     });
@@ -229,6 +268,7 @@
   const atmos = [...document.querySelectorAll('[data-atmo]')];
   if (atmos.length && !reduceMotion.matches && 'IntersectionObserver' in window) {
     const shownAtmos = new Set();
+    const atmoBoxes = new Map(atmos.map((atmo) => [atmo, { top: 0, height: 0 }]));
     const atmoObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -240,11 +280,14 @@
       requestScrollTasks();
     });
     atmos.forEach((atmo) => atmoObserver.observe(atmo));
+    measureTasks.push(() => atmoBoxes.forEach((box, atmo) => {
+      box.top = pageTop(atmo);
+      box.height = atmo.offsetHeight;
+    }));
     scrollTasks.push(() => {
-      const viewport = window.innerHeight;
       shownAtmos.forEach((atmo) => {
-        const rect = atmo.getBoundingClientRect();
-        const drift = clamp((rect.top + rect.height / 2 - viewport / 2) / viewport, -1.5, 1.5);
+        const { top, height } = atmoBoxes.get(atmo);
+        const drift = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1.5, 1.5);
         atmo.style.setProperty('--drift', drift.toFixed(3));
       });
     });
@@ -290,14 +333,23 @@
     revealItems.forEach((item) => revealObserver.observe(item));
     // At the very end of the page, what is still waiting at the bottom of the screen shows too.
     scrollTasks.push(() => {
-      const isAtEnd = window.scrollY + window.innerHeight >= root.scrollHeight - 2;
+      const isAtEnd = view.y >= view.maxScroll - 2;
       if (isAtEnd) {
-        reveal(revealItems.filter((item) => !item.classList.contains('is-visible') && item.getBoundingClientRect().top < window.innerHeight));
+        reveal(revealItems.filter((item) => !item.classList.contains('is-visible') && item.getBoundingClientRect().top < view.height));
       }
     });
   } else {
     revealAll();
   }
+
+  // Words, letters and parts of the hero that have come into place keep their last look without
+  // their animation (.is-arrived): an animation held at its end keeps each of them on a layer.
+  const ARRIVALS = new Set(['letter-focus', 'hero-in']);
+  document.addEventListener('animationend', (event) => {
+    if (ARRIVALS.has(event.animationName)) {
+      event.target.classList.add('is-arrived');
+    }
+  });
 
   // ---------- Titles focus word by word; photos open like a pupil ----------
   // Each kind waits until it is well inside the screen, so the effect is seen, then plays once.
@@ -331,6 +383,27 @@
   playOnce('[data-draw]', 'is-drawn', { rootMargin: '0px 0px -10% 0px' });
   playOnce('.label', 'is-in', { rootMargin: '0px 0px -6% 0px' });
   playOnce('[data-atmo]', 'is-drawn', { threshold: 0.12 });
+  // Once a large drawing of the surgeries page has drawn itself, it keeps its last look without its
+  // animations (.is-settled): held at their end, they kept hundreds of layers alive in the browser.
+  document.querySelectorAll('[data-atmo]').forEach((atmo) => {
+    // Only the drawing's own animations count (not the drift of the drawing, started again by the
+    // scroll).
+    const settle = () => window.requestAnimationFrame(() => {
+      const drawing = atmo.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSAnimation);
+      Promise.allSettled(drawing.map((animation) => animation.finished)).then(() => atmo.classList.add('is-settled'));
+    });
+    if (atmo.classList.contains('is-drawn')) {
+      settle();
+      return;
+    }
+    const watch = new MutationObserver(() => {
+      if (atmo.classList.contains('is-drawn')) {
+        watch.disconnect();
+        settle();
+      }
+    });
+    watch.observe(atmo, { attributes: true, attributeFilter: ['class'] });
+  });
   playOnce('[data-draw-map]', 'is-drawn', { threshold: 0.4 });
 
   // Giant titles fill their width by design; if a reader's own settings (wider letter or word
@@ -501,15 +574,18 @@
       }
     };
     // The inside of the eye makes small movements (saccades) now and then, a little toward the
-    // height of the light; the floaters follow late (the stylesheet).
+    // height of the light; the floaters follow late (the stylesheet). The turn is given to the parts
+    // that turn, not to the whole drawing (which the browser would work out again each time).
     const globe = figure.querySelector('.lamp__globe');
+    const turning = [...figure.querySelectorAll('.lamp__globe, .lamp__markers, .lamp-floaters')];
     let saccadeTimer = 0;
     const moveNowAndThen = () => {
       window.clearTimeout(saccadeTimer);
       if (globe && view.classList.contains('is-alive')) {
         saccadeTimer = window.setTimeout(() => {
           const towardLight = ((SIZE / 2 - position[1]) / REACH) * 1.4;
-          figure.style.setProperty('--turn', `${(towardLight + (Math.random() * 2 - 1) * 1.6).toFixed(2)}deg`);
+          const turn = `${(towardLight + (Math.random() * 2 - 1) * 1.6).toFixed(2)}deg`;
+          turning.forEach((part) => part.style.setProperty('--turn', turn));
           moveNowAndThen();
         }, 1400 + Math.random() * 2200);
       }
@@ -714,27 +790,43 @@
   // ---------- Glasses: a lens sharpens the reading chart ----------
   document.querySelectorAll('[data-chart]').forEach((chart) => {
     const sharp = chart.querySelector('.chart__layer--sharp');
+    const ring = chart.querySelector('.chart__lens');
     const state = { x: 0, y: 0 };
     const target = { x: 0, y: 0 };
+    // The sizes of the chart, measured when it changes size rather than at every frame.
+    const box = { width: 0, height: 0, sharpLeft: 0, sharpTop: 0 };
     let isRunning = false;
     let pointerInside = false;
     let startTime = performance.now();
-    const radius = () => clamp(chart.clientWidth * 0.17, 62, 104);
 
+    // The lens is given to the sharp layer (which shows inside it) and to its ring only.
     const paint = () => {
-      const chartRect = chart.getBoundingClientRect();
-      const sharpRect = sharp.getBoundingClientRect();
-      chart.style.setProperty('--cpx', `${state.x.toFixed(1)}px`);
-      chart.style.setProperty('--cpy', `${state.y.toFixed(1)}px`);
-      chart.style.setProperty('--cx', `${(state.x - (sharpRect.left - chartRect.left)).toFixed(1)}px`);
-      chart.style.setProperty('--cy', `${(state.y - (sharpRect.top - chartRect.top)).toFixed(1)}px`);
-      chart.style.setProperty('--cr', `${radius().toFixed(1)}px`);
+      sharp.style.setProperty('--lens-x', `${(state.x - box.sharpLeft).toFixed(1)}px`);
+      sharp.style.setProperty('--lens-y', `${(state.y - box.sharpTop).toFixed(1)}px`);
+      ring?.style.setProperty('--cpx', `${state.x.toFixed(1)}px`);
+      ring?.style.setProperty('--cpy', `${state.y.toFixed(1)}px`);
+    };
+    const measureChart = () => {
+      box.width = chart.clientWidth;
+      box.height = chart.clientHeight;
+      box.sharpLeft = sharp.offsetLeft;
+      box.sharpTop = sharp.offsetTop;
+      const radius = `${clamp(box.width * 0.17, 62, 104).toFixed(1)}px`;
+      sharp.style.setProperty('--lens-r', radius);
+      ring?.style.setProperty('--cr', radius);
     };
 
-    const restPosition = () => ({ x: chart.clientWidth * 0.32, y: chart.clientHeight * 0.24 });
+    const restPosition = () => ({ x: box.width * 0.32, y: box.height * 0.24 });
+    measureChart();
     Object.assign(state, restPosition());
     Object.assign(target, restPosition());
     paint();
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        measureChart();
+        paint();
+      }).observe(chart);
+    }
 
     if (reduceMotion.matches) {
       chart.addEventListener('pointermove', (event) => {
@@ -755,8 +847,8 @@
       if (!pointerInside) {
         // Reads down the chart, line after line, when nobody is pointing.
         const t = (now - startTime) / 1000;
-        target.x = chart.clientWidth * (0.42 + Math.sin(t * 0.55) * 0.26);
-        target.y = chart.clientHeight * (0.5 + Math.sin(t * 0.21) * 0.32);
+        target.x = box.width * (0.42 + Math.sin(t * 0.55) * 0.26);
+        target.y = box.height * (0.5 + Math.sin(t * 0.21) * 0.32);
       }
       state.x = lerp(state.x, target.x, pointerInside ? 0.18 : 0.04);
       state.y = lerp(state.y, target.y, pointerInside ? 0.18 : 0.04);
@@ -799,13 +891,16 @@
     const readout = trial.querySelector('[data-trial-readout]');
     const labels = [...trial.querySelectorAll('.trial__scale--cyl .trial__deg')];
     const shines = [...trial.querySelectorAll('.trial__shine')];
+    // The angle is given to the parts that turn, not to the whole frame.
+    const turning = [...trial.querySelectorAll('.trial__axis, .trial__marker')];
     const CYLINDER = [595, 222];
     let axis = 45;
     let goal = 45;
     let frame = 0;
     let lastTime = 0;
     const paint = () => {
-      trial.style.setProperty('--trial-axis', `${(45 - axis).toFixed(2)}deg`);
+      const angle = `${(45 - axis).toFixed(2)}deg`;
+      turning.forEach((part) => part.style.setProperty('--trial-axis', angle));
       const shown = Math.round(((axis % 180) + 180) % 180);
       readout.textContent = `Axe ${shown}°`;
       const nearest = Math.round(shown / 30) * 30;
@@ -1004,9 +1099,13 @@
   const toc = document.querySelector('.toc');
   const articleBody = document.querySelector('.article-body');
   if (toc && articleBody) {
+    const article = { top: 0, height: 1 };
+    measureTasks.push(() => {
+      article.top = pageTop(articleBody);
+      article.height = articleBody.offsetHeight || 1;
+    });
     scrollTasks.push(() => {
-      const rect = articleBody.getBoundingClientRect();
-      const read = clamp((window.innerHeight * 0.4 - rect.top) / rect.height, 0, 1);
+      const read = clamp((view.height * 0.4 - (article.top - view.y)) / article.height, 0, 1);
       toc.style.setProperty('--read', read.toFixed(3));
     });
   }
@@ -1017,14 +1116,21 @@
     const steps = [...journey.querySelectorAll('.journey__step')];
     // Each question of a step is a station on the line, lit once the line has reached it.
     const stations = [...journey.querySelectorAll('.qa')];
+    const places = { top: 0, height: 1, steps: [], stations: [] };
+    measureTasks.push(() => {
+      places.top = pageTop(journey);
+      places.height = journey.offsetHeight || 1;
+      places.steps = steps.map(pageTop);
+      places.stations = stations.map(pageTop);
+    });
     scrollTasks.push(() => {
-      const rect = journey.getBoundingClientRect();
-      const anchor = window.innerHeight * 0.45;
-      const progress = clamp((anchor - rect.top) / rect.height, 0, 1);
+      // The line reaches the point at 45 % of the height of the screen (in the page).
+      const anchor = view.y + view.height * 0.45;
+      const progress = clamp((anchor - places.top) / places.height, 0, 1);
       fill?.style.setProperty('--fill', progress.toFixed(4));
       let current = -1;
-      steps.forEach((step, i) => {
-        if (step.getBoundingClientRect().top < anchor) {
+      places.steps.forEach((top, i) => {
+        if (top < anchor) {
           current = i;
         }
       });
@@ -1032,7 +1138,7 @@
         step.classList.toggle('is-current', i === current);
         step.classList.toggle('is-done', i < current);
       });
-      stations.forEach((station) => station.classList.toggle('is-passed', station.getBoundingClientRect().top + 24 < anchor));
+      stations.forEach((station, i) => station.classList.toggle('is-passed', places.stations[i] + 24 < anchor));
     });
   });
 
@@ -1083,7 +1189,9 @@
 
     // A step chosen by the visitor is announced; the steps of the autoplay are not (a screen reader
     // would be interrupted every three seconds).
+    schema.style.setProperty('--step-duration', `${duration}ms`);
     const show = (next, isChosen = false) => {
+      const isSameStep = next === step;
       step = next;
       schema.dataset.step = String(step);
       for (let i = 1; i <= total; i += 1) {
@@ -1104,13 +1212,14 @@
         const values = node.dataset.values.split('|');
         node.textContent = values[Math.min(step, values.length) - 1];
       });
-      schema.style.setProperty('--step-duration', `${duration}ms`);
-      schema.classList.remove('is-timing');
-      // Restart the progress bar of the current step.
-      void schema.offsetWidth;
-      if (isPlaying) {
-        schema.classList.add('is-timing');
+      // The bar of the step fills from the start: a new step starts its own bar; the same step shown
+      // again (the schema back on screen, the play button) has its bar started again, which needs
+      // the browser to see it stopped first (a rare, forced layout).
+      if (isSameStep && schema.classList.contains('is-timing')) {
+        schema.classList.remove('is-timing');
+        void schema.offsetWidth;
       }
+      schema.classList.toggle('is-timing', isPlaying);
     };
 
     // Driven schemas (surgeries page): the page chooses the step, from the scroll.
@@ -1256,9 +1365,12 @@
       });
       schema?.dispatchEvent(new CustomEvent('schema:goto', { detail: { step } }));
       onShow(step, isNew);
-      // The bar of the step fills again from the start.
-      root.classList.remove('is-timing');
-      void root.offsetWidth;
+      // The bar of the step fills again from the start: a new step starts its own bar; the same
+      // step shown again has it started again (a rare, forced layout).
+      if (!isNew && root.classList.contains('is-timing')) {
+        root.classList.remove('is-timing');
+        void root.offsetWidth;
+      }
       root.classList.toggle('is-timing', isPlaying && isVisible);
     };
 

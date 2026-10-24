@@ -253,15 +253,30 @@
     flash: uniform('uFlash'),
   };
 
+  // ---------- Quality ----------
+  // The iris is drawn at the resolution of the screen, at most 1.75 pixel per point. When the frames
+  // come too slowly (a modest graphics chip, an old computer), it is drawn a step less finely, so that
+  // the page stays fluid; it goes back up when there is room again, never above a step found too slow.
+  const MAX_SCALE = Math.min(window.devicePixelRatio || 1, 1.75);
+  const MIN_SCALE = Math.min(MAX_SCALE, Math.max(0.75, MAX_SCALE / 2));
+  const SLOW_FRAME = 24;
+  const QUIET_FRAME = 18;
+  const WINDOW = 60;
+  const quality = { scale: MAX_SCALE, ceiling: MAX_SCALE, frames: 0, slow: 0, quiet: 0, easyWindows: 0, settleUntil: 0 };
+
   // ---------- Geometry ----------
-  const geometry = { width: 0, height: 0, dpr: 1, cx: 0, cy: 0, radius: 0, drawBox: [0, 0, 1, 1] };
+  const geometry = { width: 0, height: 0, dpr: 1, cx: 0, cy: 0, radius: 0, drawBox: [0, 0, 1, 1], heroHeight: 1 };
   const layout = () => {
     const rect = stage.getBoundingClientRect();
-    geometry.dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    geometry.dpr = quality.scale;
     geometry.width = Math.max(1, Math.round(rect.width * geometry.dpr));
     geometry.height = Math.max(1, Math.round(rect.height * geometry.dpr));
-    canvas.width = geometry.width;
-    canvas.height = geometry.height;
+    // (Setting the size of a canvas clears it: only when it changes.)
+    if (canvas.width !== geometry.width || canvas.height !== geometry.height) {
+      canvas.width = geometry.width;
+      canvas.height = geometry.height;
+    }
+    geometry.heroHeight = Math.max(1, hero.offsetHeight);
     // The iris is drawn exactly over the poster, which CSS places (iris radius = 46 % of the poster).
     const box = poster.getBoundingClientRect();
     geometry.cx = (box.left - rect.left + box.width / 2) * geometry.dpr;
@@ -273,13 +288,18 @@
   };
 
   // Scrolling the hero away brings the eye closer: it grows, drifts toward the middle and rises more
-  // slowly than the page (decorative; the page scrolls as usual).
+  // slowly than the page (decorative; the page scrolls as usual). The scroll offset is kept from the
+  // scroll event and the height of the hero from its last measure: a frame reads no layout.
+  let scrollTop = window.scrollY;
+  window.addEventListener('scroll', () => {
+    scrollTop = window.scrollY;
+  }, { passive: true });
   const view = { cx: 0, cy: 0, radius: 0, zoom: 1 };
   const updateView = () => {
-    const progress = reduceMotion ? 0 : Math.min(1, Math.max(0, window.scrollY / Math.max(1, hero.offsetHeight)));
+    const progress = reduceMotion ? 0 : Math.min(1, Math.max(0, scrollTop / geometry.heroHeight));
     view.zoom = 1 + 1.9 * progress * progress;
     view.cx = geometry.cx + (geometry.width / 2 - geometry.cx) * progress * 0.45;
-    view.cy = geometry.cy + (reduceMotion ? 0 : Math.min(window.scrollY, hero.offsetHeight) * geometry.dpr * 0.42);
+    view.cy = geometry.cy + (reduceMotion ? 0 : Math.min(scrollTop, geometry.heroHeight) * geometry.dpr * 0.42);
     view.radius = geometry.radius * view.zoom;
   };
 
@@ -410,8 +430,52 @@
   let isReady = false;
   let isRunning = false;
   let isVisible = true;
+  // Wide screens put the eye out of focus once the hero is mostly left behind (site.css): blurred,
+  // it rests instead of being drawn again for nothing at every frame.
+  let isAway = false;
+  const blursAway = window.matchMedia('(min-width: 861px)');
   let lastReadout = 0;
   const startedAt = last;
+  quality.settleUntil = startedAt + 1.5;
+  const isResting = () => !isVisible || document.hidden || state.isPaused || (isAway && blursAway.matches);
+
+  const rescale = (scale) => {
+    const ratio = scale / quality.scale;
+    quality.scale = scale;
+    state.beamX *= ratio;
+    state.beamTarget *= ratio;
+    state.mouseX *= ratio;
+    state.mouseY *= ratio;
+    layout();
+  };
+  // About every second, the frames are counted: too many late ones and the iris is drawn a step less
+  // finely; several quiet seconds in a row and it is drawn finer again.
+  const adapt = (interval, now) => {
+    if (now < quality.settleUntil) {
+      return;
+    }
+    quality.frames += 1;
+    quality.slow += interval > SLOW_FRAME ? 1 : 0;
+    quality.quiet += interval < QUIET_FRAME ? 1 : 0;
+    if (quality.frames < WINDOW) {
+      return;
+    }
+    const isStruggling = quality.slow > WINDOW * 0.25;
+    const isEasy = quality.quiet > WINDOW * 0.95;
+    quality.easyWindows = isEasy ? quality.easyWindows + 1 : 0;
+    quality.frames = 0;
+    quality.slow = 0;
+    quality.quiet = 0;
+    if (isStruggling && quality.scale > MIN_SCALE) {
+      quality.ceiling = Math.max(MIN_SCALE, quality.scale * 0.92);
+      rescale(Math.max(MIN_SCALE, quality.scale * 0.8));
+      quality.settleUntil = now + 0.6;
+    } else if (quality.easyWindows >= 5 && quality.scale < quality.ceiling) {
+      quality.easyWindows = 0;
+      rescale(Math.min(quality.ceiling, quality.scale * 1.1));
+      quality.settleUntil = now + 0.6;
+    }
+  };
 
   const sendCommon = (now) => {
     gl.uniform1f(U.time, now - startedAt);
@@ -424,12 +488,13 @@
   };
 
   const frame = () => {
-    if (!isVisible || document.hidden || state.isPaused) {
+    if (isResting()) {
       isRunning = false;
       return;
     }
     const now = performance.now() / 1000;
     const dt = Math.min(0.05, now - last);
+    adapt((now - last) * 1000, now);
     last = now;
     updateView();
 
@@ -483,7 +548,7 @@
 
   // Animated only once the texture is there, and never with reduced motion.
   const start = () => {
-    if (isReady && !reduceMotion && !isRunning && isVisible && !document.hidden && !state.isPaused) {
+    if (isReady && !reduceMotion && !isRunning && !isResting()) {
       isRunning = true;
       last = performance.now() / 1000;
       window.requestAnimationFrame(frame);
@@ -596,17 +661,25 @@
       start();
     });
   }
-  window.addEventListener('resize', () => {
+  // The size of the hero changes (window, fonts, enlarged text): measured again.
+  const remeasure = () => {
     layout();
-    if (reduceMotion) {
+    if (reduceMotion && isReady) {
       renderStill();
     }
-  });
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((entries) => {
-      isVisible = entries[0].isIntersecting;
-      start();
-    }).observe(stage);
+  };
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(remeasure).observe(stage);
+  } else {
+    window.addEventListener('resize', remeasure);
   }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+      isAway = entry.intersectionRatio < 0.45 && entry.boundingClientRect.top < 0;
+      start();
+    }, { threshold: [0, 0.45, 1] }).observe(hero);
+  }
+  blursAway.addEventListener('change', start);
   document.addEventListener('visibilitychange', start);
 })();

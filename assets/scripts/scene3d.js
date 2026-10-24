@@ -38,11 +38,17 @@ if (stages.length && hasWebGL2()) {
 
 let three = null;
 
+// The next calm moment of the page (at the latest a second and a half later).
+const calmMoment = () => new Promise((resolve) => ('requestIdleCallback' in window ? window.requestIdleCallback(resolve, { timeout: 1500 }) : window.setTimeout(resolve, 100)));
+
 async function start(stage) {
   try {
     three ||= import('../vendor/three/three.module.min.js');
     const [THREE, scene] = await Promise.all([three, import(`./scenes/${stage.dataset.scene3d}.js`)]);
-    run(THREE, stage, scene.create);
+    // The scene is built at calm moments of the page: its building, a long piece of work, then does
+    // not interrupt the animations of a scroll.
+    await calmMoment();
+    await run(THREE, stage, scene);
   } catch (error) {
     // Nothing is shown: the page stays as it is.
   }
@@ -66,16 +72,19 @@ function studio(THREE, renderer) {
   softBox(2.2, 5, 0xffe2c2, 3.6, [-5.5, 1, 1.5]);
   softBox(2.2, 5, 0xd6e4ff, 2.8, [5.5, 0.5, -1]);
   const generator = new THREE.PMREMGenerator(renderer);
-  const texture = generator.fromScene(room, 0.035).texture;
+  // 128 pixels a face are enough for these large soft lights (a quarter of the default work).
+  const texture = generator.fromScene(room, 0.035, 0.1, 100, { size: 128 }).texture;
   generator.dispose();
   return texture;
 }
 
-function run(THREE, stage, create) {
+async function run(THREE, stage, scene) {
   const canvas = stage.querySelector('canvas') || stage.appendChild(document.createElement('canvas'));
   canvas.classList.add('scene3d__canvas');
   canvas.setAttribute('aria-hidden', 'true');
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+  // No reading back of the compilation logs (made for development): it waits for every shader.
+  renderer.debug.checkShaderErrors = false;
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.NeutralToneMapping;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -91,7 +100,13 @@ function run(THREE, stage, create) {
     // A scene may ask for frames while it is being built: the request waits for the loop to exist.
     wake: () => queueMicrotask(() => wake()),
   };
-  const view = create(THREE, kit);
+  // A scene lit by the studio has it made first, at its own calm moment: two shorter pieces of work
+  // rather than one long one.
+  if (scene.usesStudio) {
+    kit.environment();
+    await calmMoment();
+  }
+  const view = scene.create(THREE, kit);
 
   // The time of the scene runs while it plays; the pointer (from -1 to 1 over the scene, followed
   // softly) works even while it is paused.
@@ -123,6 +138,8 @@ function run(THREE, stage, create) {
   const timer = new THREE.Timer();
   timer.connect(document);
   let isRunning = false;
+  // Nothing is drawn before the shaders are compiled (in the background, see below).
+  let isCompiled = false;
   const follow = (value, target, rate, dt) => value + (target - value) * (1 - Math.exp(-rate * dt));
 
   const frame = () => {
@@ -150,7 +167,7 @@ function run(THREE, stage, create) {
   };
 
   function wake() {
-    if (!isRunning && state.isVisible && !document.hidden) {
+    if (!isRunning && isCompiled && state.isVisible && !document.hidden) {
       isRunning = true;
       timer.reset();
       renderer.setAnimationLoop(frame);
@@ -173,7 +190,7 @@ function run(THREE, stage, create) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall() ? 1.75 : 2));
     renderer.setSize(width, height, false);
     view.resize(width, height);
-    if (!isRunning) {
+    if (!isRunning && isCompiled) {
       renderer.render(view.scene, view.camera);
     }
     wake();
@@ -197,9 +214,16 @@ function run(THREE, stage, create) {
   });
 
   resize();
-  if (button) {
-    button.hidden = false;
-  }
-  stage.classList.add('is-ready');
-  wake();
+  // The shaders are compiled in the background before the first frame: a scene coming near the
+  // screen no longer stops the page while they compile (on a phone, up to most of a second for the
+  // glass of the spectacle lens).
+  const compiled = typeof renderer.compileAsync === 'function' ? renderer.compileAsync(view.scene, view.camera) : Promise.resolve();
+  compiled.catch(() => {}).then(() => {
+    isCompiled = true;
+    if (button) {
+      button.hidden = false;
+    }
+    stage.classList.add('is-ready');
+    resize();
+  });
 }

@@ -54,6 +54,9 @@ function drawPower(canvas, power) {
   ctx.restore();
 }
 
+// Lit by the photographer's studio of scene3d.js (made before the scene, at its own calm moment).
+export const usesStudio = true;
+
 export function create(THREE, kit) {
   const { renderer } = kit;
   renderer.shadowMap.enabled = true;
@@ -69,15 +72,20 @@ export function create(THREE, kit) {
   chartCanvas.width = 1024;
   chartCanvas.height = 1300;
   const family = '"Atkinson Hyperlegible Next", system-ui, sans-serif';
+  const font = `700 120px ${family}`;
   drawChart(chartCanvas, family);
   const chart = new THREE.CanvasTexture(chartCanvas);
   chart.colorSpace = THREE.SRGBColorSpace;
   chart.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  document.fonts?.load(`700 120px ${family}`).then(() => {
-    drawChart(chartCanvas, family);
-    chart.needsUpdate = true;
-    kit.wake();
-  }).catch(() => {});
+  // Drawn again with the font of the site once it is there (not when it already was).
+  const hasFont = document.fonts ? document.fonts.check(font) : true;
+  if (!hasFont) {
+    document.fonts.load(font).then(() => {
+      drawChart(chartCanvas, family);
+      chart.needsUpdate = true;
+      kit.wake();
+    }).catch(() => {});
+  }
   const edge = new THREE.MeshStandardMaterial({ color: '#e9e2d4', roughness: 0.9 });
   const card = new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_H, 0.06), [edge, edge, edge, edge, new THREE.MeshStandardMaterial({ map: chart, roughness: 0.85 }), edge]);
   card.receiveShadow = true;

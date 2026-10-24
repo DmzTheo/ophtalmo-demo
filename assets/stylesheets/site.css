@@ -1877,6 +1877,16 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   animation: hud-blink 2.4s ease-in-out infinite;
 }
 
+/* On touch screens the panel lies over the iris, drawn again at every frame: a frosted glass would
+   be blurred again at every frame by the phone's graphics chip. A darker glass instead. */
+@media (hover: none) {
+  .hud {
+    background: rgba(9, 19, 34, 0.8);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 @keyframes hud-blink {
   50% {
     opacity: 0.35;
@@ -3134,8 +3144,10 @@ a.contact-band__item:hover .contact-band__value {
   transition: opacity 0.3s var(--ease-out);
 }
 
-.schema:not(.is-visible) .schema__svg * {
-  animation-play-state: paused;
+/* Off screen, a schema rests. (Important: the rules of the steps set their animations with the
+   shorthand, which would otherwise start them again, and they kept running off screen.) */
+.schema:not(.is-visible) :is(.schema__svg *, .schema__target svg) {
+  animation-play-state: paused !important;
 }
 
 /* Labels: HTML, so they stay readable at any size. */
@@ -4688,60 +4700,62 @@ html:not(.js) .schema__play {
 
 /* ---------- Surgery schemas: the place of each step, lit and framed ---------- */
 /* The focus of the step playing (schemas.js writes one per step, as fractions of the drawing); it
-   glides to the next one, and the light and the target follow it. */
+   glides to the next one, and the light and the target follow it. Only the light and the target
+   carry it, and it is not passed on to what they hold: while it glides, the browser works out again
+   these two elements alone, not the hundreds of lines of the drawing. */
 @property --sx {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0.5;
 }
 
 @property --sy {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0.5;
 }
 
 @property --sr {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0.3;
 }
 
-.schema--focus .schema__canvas {
+.schema--focus :is(.schema__spot, .schema__target) {
   transition: --sx 1.1s var(--ease-in-out), --sy 1.1s var(--ease-in-out), --sr 1.1s var(--ease-in-out);
 }
 
-.schema--focus[data-step="1"] .schema__canvas {
+.schema--focus[data-step="1"] :is(.schema__spot, .schema__target) {
   --sx: var(--s1x);
   --sy: var(--s1y);
   --sr: var(--s1r);
 }
 
-.schema--focus[data-step="2"] .schema__canvas {
+.schema--focus[data-step="2"] :is(.schema__spot, .schema__target) {
   --sx: var(--s2x);
   --sy: var(--s2y);
   --sr: var(--s2r);
 }
 
-.schema--focus[data-step="3"] .schema__canvas {
+.schema--focus[data-step="3"] :is(.schema__spot, .schema__target) {
   --sx: var(--s3x);
   --sy: var(--s3y);
   --sr: var(--s3r);
 }
 
-.schema--focus[data-step="4"] .schema__canvas {
+.schema--focus[data-step="4"] :is(.schema__spot, .schema__target) {
   --sx: var(--s4x);
   --sy: var(--s4y);
   --sr: var(--s4r);
 }
 
-.schema--focus[data-step="5"] .schema__canvas {
+.schema--focus[data-step="5"] :is(.schema__spot, .schema__target) {
   --sx: var(--s5x);
   --sy: var(--s5y);
   --sr: var(--s5r);
 }
 
-.schema--focus[data-step="6"] .schema__canvas {
+.schema--focus[data-step="6"] :is(.schema__spot, .schema__target) {
   --sx: var(--s6x);
   --sy: var(--s6y);
   --sr: var(--s6r);
@@ -4803,9 +4817,10 @@ html:not(.js) .schema__play {
   animation: target-lock-b 1s var(--ease-out) both;
 }
 
+/* (transform rather than rotate: Chrome hands only the first to the graphics chip on an svg.) */
 @keyframes target-spin {
   to {
-    rotate: 360deg;
+    transform: rotate(360deg);
   }
 }
 
@@ -4847,7 +4862,7 @@ html:not(.js) .schema__play {
 /* What keeps moving within a step stops with the pause of its schema, chapter or film; the gestures
    of the step (a few seconds) still play when a step is chosen. */
 :is(.chapter, .film, .schema[data-autoplay]):not(.is-playing) :is(.schema__target svg, .schema__svg :is(.flow, .haze, .glare, .fog, .vibrate, .wave, .focus-pulse, .scan-beam, .scan-orbit, .tracker, .pulse-dot, .plume, .blur-spot, .epi-defect, .sag, .weight, .pulse-ring, .drop, .drug-grain, .aqueous, .jam, .pressure, .artery-pulse, .cone, .rod, .grid-wavy, .sway, .drift, .tug, .flash)) {
-  animation-play-state: paused;
+  animation-play-state: paused !important;
 }
 
 /* ---------- Surgery schemas: more of each gesture ---------- */
@@ -6156,7 +6171,7 @@ html:not(.js) .schema__play {
    light (its first moments fit in the three seconds the tour gives it), and goes on while the light
    stays on it. Everything rests with the view: off screen, tour paused, or the visitor gone (.is-alive). */
 .lamp__view:not(.is-alive) .lamp__svg * {
-  animation-play-state: paused;
+  animation-play-state: paused !important;
 }
 
 .lamp__pupil {
@@ -6903,9 +6918,6 @@ html:not(.js) .schema__play {
 }
 
 .chart {
-  --cx: 50%;
-  --cy: 45%;
-  --cr: 0px;
   position: relative;
   padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3.25rem);
   overflow: hidden;
@@ -6926,11 +6938,31 @@ html:not(.js) .schema__play {
   opacity: 0.85;
 }
 
+/* The sharp letters show only inside the lens, which site.js moves (--lens-x, --lens-y, --lens-r, on
+   this layer). Its letters do not take these values: following the lens, frame after frame, costs
+   one element instead of the whole chart. */
+@property --lens-x {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+
+@property --lens-y {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 45%;
+}
+
+@property --lens-r {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
 .chart__layer--sharp {
   position: absolute;
   inset: clamp(1.75rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3.25rem);
-  -webkit-mask: radial-gradient(circle at var(--cx) var(--cy), #000 calc(var(--cr) - 1px), transparent var(--cr));
-  mask: radial-gradient(circle at var(--cx) var(--cy), #000 calc(var(--cr) - 1px), transparent var(--cr));
+  clip-path: circle(var(--lens-r) at var(--lens-x) var(--lens-y));
 }
 
 .chart__line {
@@ -6957,7 +6989,9 @@ html:not(.js) .schema__play {
 .chart__line--5 { font-size: 1rem; font-weight: 480; }
 .chart__line--6 { font-size: 0.875rem; font-weight: 500; }
 
+/* The ring of the lens: its size and place come from site.js, on the ring itself. */
 .chart__lens {
+  --cr: 0px;
   position: absolute;
   top: 0;
   left: 0;
@@ -8547,11 +8581,17 @@ html:has(.chapter-nav) {
    plays by itself beside its steps (site.js), and the way to the intervention to close it. Each
    chapter has its colour and, behind it, a large drawing of the operation (atmos.js); the chapters
    alternate their sides, with much air between them. */
+/* A chapter off screen is left aside by the browser (its drawings, its animations, its layers are
+   not worked out); it already cuts what overflows it, so nothing changes to what is seen. The size
+   given is a guess for a chapter not yet shown (about their height on a phone); once shown, the
+   browser keeps its real size. */
 .chapter {
   --film-duration: 3s;
   position: relative;
   isolation: isolate;
   overflow: clip;
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 1500px;
 }
 
 .chapter__head {
@@ -8952,7 +8992,27 @@ html:has(.chapter-nav) {
 
 /* The drawing behind the chapter (atmos.js): large, faint, in the colour of the operation, on the
    side of the steps. It is drawn when the chapter arrives, then drifts with the scroll (--drift,
-   from site.js) and leans away from the pointer (--ax, --ay), like a far plane. */
+   from site.js) and leans away from the pointer (--ax, --ay), like a far plane. These values change
+   at every frame of scroll; the drawing alone uses them, so they are not passed on to its hundreds of
+   lines (which the browser would otherwise work out again each time). */
+@property --drift {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --ax {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --ay {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 .chapter__atmo {
   --spin: 10deg;
   position: absolute;
@@ -9030,9 +9090,10 @@ html:has(.chapter-nav) {
   animation-delay: calc(var(--i, 0) * 0.09s);
 }
 
+/* The laser shots, band after band from the centre outward (12 bands, atmos.js). */
 .js .chapter__atmo.is-drawn .atmo__shot {
-  animation: atmo-shot 0.6s var(--ease-out) forwards;
-  animation-delay: calc(0.3s + var(--i, 0) * 5ms);
+  animation: atmo-shot 0.7s var(--ease-out) forwards;
+  animation-delay: calc(0.3s + var(--i, 0) * 0.16s);
 }
 
 .js .chapter__atmo.is-drawn .atmo__grain {
@@ -9043,6 +9104,31 @@ html:has(.chapter-nav) {
 /* The eye of the folds blinks once, when it is drawn. */
 .js .chapter__atmo.is-drawn .atmo__blink {
   animation: atmo-blink 0.7s var(--ease-in-out) 3.1s;
+}
+
+/* Once drawn (site.js), the drawing keeps its last look without its animations: held at their end,
+   they kept each shot and grain on a layer of its own, hundreds of them, which the browser handled
+   again at every frame of the whole page. (The universal selector makes the browser work out the
+   whole drawing again once: an attribute in :is() is not enough for it to see the SVG lines.) */
+.js .chapter__atmo.is-drawn.is-settled * {
+  animation: none;
+}
+
+.js .chapter__atmo.is-settled [pathLength] {
+  stroke-dashoffset: 0;
+}
+
+.js .chapter__atmo.is-settled .atmo__dash {
+  opacity: 1;
+}
+
+.js .chapter__atmo.is-settled .atmo__shot {
+  opacity: 0.75;
+}
+
+.js .chapter__atmo.is-settled .atmo__grain {
+  opacity: 0.55;
+  transform: translate(var(--dx), var(--dy));
 }
 
 @keyframes atmo-draw {
@@ -9060,12 +9146,12 @@ html:has(.chapter-nav) {
 @keyframes atmo-shot {
   0% {
     opacity: 0;
-    transform: scale(0.2);
+    transform: scale(0.82);
   }
 
-  40% {
+  45% {
     opacity: 1;
-    transform: scale(1.7);
+    transform: scale(1.03);
   }
 
   100% {
@@ -13189,6 +13275,16 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   display: inline-block;
 }
 
+/* Arrived (site.js, at the end of their animation): a word, a letter or a part of the hero keeps its
+   last look without the animation that brought it. Held at its end, the animation kept each word on
+   a layer of its own, which the browser handled again at every frame of the page. */
+.is-arrived {
+  animation: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
 @keyframes hero-in {
   to {
     opacity: 1;
@@ -13698,7 +13794,20 @@ main[data-patho="dmla"] .page-head .page-title,
 }
 
 /* Under the pointer (site.js): the frame leans toward it, light glints on the lenses, the cylinder
-   turns its axis toward it, the marker follows on the scale, and the axis is read below the cell. */
+   turns its axis toward it, the marker follows on the scale, and the axis is read below the cell.
+   The lean belongs to the frame alone: its lines do not take it over. */
+@property --trial-rx {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@property --trial-ry {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .trial {
   transform: perspective(1400px) rotateX(var(--trial-rx, 0deg)) rotateY(var(--trial-ry, 0deg));
   transition: transform 0.9s var(--ease-out);

@@ -413,6 +413,8 @@ function build(THREE) {
   // ---------- Scene ----------
   const canvas = stage.querySelector('canvas');
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+  // No reading back of the compilation logs (made for development): it waits for every shader.
+  renderer.debug.checkShaderErrors = false;
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   scene.add(head);
