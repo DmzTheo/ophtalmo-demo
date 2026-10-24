@@ -24,8 +24,9 @@
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}</style>
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
   <link rel="stylesheet" href="../assets/stylesheets/site.css">
+  <script src="../assets/scripts/view.js" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js" defer></script>
   <script src="../assets/scripts/site.js" defer></script>
@@ -161,7 +162,7 @@
 
   <main id="contenu" data-op="laser">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"></div>
+      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></div>
       <div class="container">
         <div class="page-head__grid">
           <div>
@@ -423,7 +424,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

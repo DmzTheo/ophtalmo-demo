@@ -24,8 +24,10 @@
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
   <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}</style>
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
   <link rel="stylesheet" href="assets/stylesheets/site.css">
+  <script src="assets/scripts/view.js" defer></script>
+  <script src="assets/scripts/pictures.js" defer></script>
   <script src="assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
   <script src="assets/scripts/site.js" defer></script>
@@ -135,7 +137,7 @@
 
   <main id="contenu">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"></div>
+      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
       <div class="container page-head__grid page-head__grid--single">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -160,7 +162,7 @@
         <h2 class="sr-only" id="medecins-title">Les médecins</h2>
         <article class="doctor-profile" id="buzzacchera" aria-labelledby="dr-buzzacchera">
           <div class="doctor-profile__media" data-parallax data-aperture>
-            <picture><source type="image/webp" srcset="assets/img/buzzacchera-500.webp 500w, assets/img/buzzacchera-800.webp 800w, assets/img/buzzacchera-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="assets/img/buzzacchera-800.jpg" srcset="assets/img/buzzacchera-500.jpg 500w, assets/img/buzzacchera-800.jpg 800w, assets/img/buzzacchera-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Nadine Buzzacchera, devant une lampe à fente" loading="lazy" decoding="async"></picture>
+            <picture data-defer><source type="image/webp" data-srcset="assets/img/buzzacchera-500.webp 500w, assets/img/buzzacchera-800.webp 800w, assets/img/buzzacchera-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/buzzacchera-800.jpg" data-srcset="assets/img/buzzacchera-500.jpg 500w, assets/img/buzzacchera-800.jpg 800w, assets/img/buzzacchera-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Nadine Buzzacchera, devant une lampe à fente" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/buzzacchera-500.webp 500w, assets/img/buzzacchera-800.webp 800w, assets/img/buzzacchera-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="assets/img/buzzacchera-800.jpg" srcset="assets/img/buzzacchera-500.jpg 500w, assets/img/buzzacchera-800.jpg 800w, assets/img/buzzacchera-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Nadine Buzzacchera, devant une lampe à fente" decoding="async" loading="lazy"></picture></noscript>
           </div>
           <div data-reveal>
             <p class="label">01 · Les médecins</p>
@@ -176,7 +178,7 @@
         </article>
         <article class="doctor-profile doctor-profile--reverse" id="soare" aria-labelledby="dr-soare">
           <div class="doctor-profile__media" data-parallax data-aperture>
-            <picture><source type="image/webp" srcset="assets/img/soare-500.webp 500w, assets/img/soare-800.webp 800w, assets/img/soare-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="assets/img/soare-800.jpg" srcset="assets/img/soare-500.jpg 500w, assets/img/soare-800.jpg 800w, assets/img/soare-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Silvia Soare, devant une lampe à fente" loading="lazy" decoding="async"></picture>
+            <picture data-defer><source type="image/webp" data-srcset="assets/img/soare-500.webp 500w, assets/img/soare-800.webp 800w, assets/img/soare-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/soare-800.jpg" data-srcset="assets/img/soare-500.jpg 500w, assets/img/soare-800.jpg 800w, assets/img/soare-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Silvia Soare, devant une lampe à fente" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/soare-500.webp 500w, assets/img/soare-800.webp 800w, assets/img/soare-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 40vw"><img src="assets/img/soare-800.jpg" srcset="assets/img/soare-500.jpg 500w, assets/img/soare-800.jpg 800w, assets/img/soare-1200.jpg 1200w" sizes="(max-width: 900px) 100vw, 40vw" width="1200" height="1800" alt="Portrait du docteur Silvia Soare, devant une lampe à fente" decoding="async" loading="lazy"></picture></noscript>
           </div>
           <div data-reveal>
             <p class="label">02 · Les médecins</p>
@@ -221,7 +223,7 @@
           </li>
         </ol>
         <figure class="team-photo" data-reveal>
-          <div class="drawing drawing--iris" aria-hidden="true"></div>
+          <div class="drawing drawing--iris" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
           <div class="team-photo__inner">
             <span class="team-photo__icon"><svg class="icon icon--camera" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle pathLength="1" cx="12" cy="13" r="3"/></svg></span>
             <p class="team-photo__title">La photo de l'équipe arrive prochainement</p>
@@ -233,7 +235,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

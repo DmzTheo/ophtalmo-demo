@@ -1,8 +1,8 @@
 // The drawing of the head of a page answers the pointer: where the pointer passes, its lines part
 // like threads under a finger, are drawn a little along with it, and close again behind it. It is
-// the same drawing as the still one (an SVG of assets/images/drawings, placed by the stylesheet):
-// at the first move of the pointer it is read, cut into lines of points and drawn on a canvas in the
-// same place, and the still one gives way to it. Mouse only; nothing with reduced motion.
+// the same drawing as the still one (an SVG of assets/images/drawings, shown in the page through
+// <use>): at the first move of the pointer it is read, cut into lines of points and drawn on a canvas
+// in the same place, and the still one gives way to it. Mouse only; nothing with reduced motion.
 (() => {
   const layers = [...document.querySelectorAll('.page-head > .drawing--page, .glasses-hero > .drawing--page, .site-footer > .drawing')];
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -47,30 +47,21 @@
     return lines;
   };
 
-  // Where the stylesheet puts the drawing: its size ("cover" or "auto N%") and position ("X% Y%").
-  const placement = (layer, width, height) => {
-    const style = getComputedStyle(layer);
-    const size = (style.maskSize || style.webkitMaskSize || 'cover').split(',')[0].trim();
-    const position = (style.maskPosition || style.webkitMaskPosition || '50% 50%').split(',')[0].trim().split(/\s+/);
-    let scale = Math.max(width / VIEW_W, height / VIEW_H);
-    const auto = /^auto\s+([\d.]+)%$/.exec(size);
-    if (auto) {
-      scale = ((height * Number(auto[1])) / 100) / VIEW_H;
-    }
-    const w = VIEW_W * scale;
-    const h = VIEW_H * scale;
-    const fraction = (value) => (value && value.endsWith('%') ? Number(value.slice(0, -1)) / 100 : 0.5);
-    return { scale, left: (width - w) * fraction(position[0]), top: (height - h) * fraction(position[1] || position[0]) };
+  // Where the stylesheet puts the drawing: the box of its SVG in the layer.
+  const placement = (layer) => {
+    const box = layer.getBoundingClientRect();
+    const drawn = layer.querySelector('svg').getBoundingClientRect();
+    return { scale: drawn.width / VIEW_W, left: drawn.left - box.left, top: drawn.top - box.top };
   };
 
   layers.forEach((layer) => {
     const head = layer.parentElement;
-    const url = (getComputedStyle(layer).maskImage || getComputedStyle(layer).webkitMaskImage || '').match(/url\("?([^")]+)"?\)/)?.[1];
+    const url = layer.querySelector('use')?.getAttribute('href')?.split('#')[0];
     if (!url) {
       return;
     }
     // The colour and the strength of the lines: those the still drawing is painted with.
-    const ink = getComputedStyle(layer).backgroundColor;
+    const ink = getComputedStyle(layer).color;
     const strength = Number(getComputedStyle(layer).opacity) || 0.07;
     let lines = null;
     let canvas = null;
@@ -93,7 +84,7 @@
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
-      place = placement(layer, width, height);
+      place = placement(layer);
     };
 
     const draw = () => {

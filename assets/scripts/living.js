@@ -257,7 +257,7 @@
     };
 
     // Starts once on screen: the scene draws itself, then waits for the pointer.
-    new IntersectionObserver(([entry]) => {
+    new ViewWatcher(([entry]) => {
       isVisible = entry.isIntersecting;
       if (isVisible && !scene) {
         startedAt = performance.now();

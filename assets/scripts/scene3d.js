@@ -4,9 +4,14 @@
 // screen, and beside the titles the implant, the cornea under the laser, the medicine in the eye and
 // the Amsler grid. Two keep a look of their own: the team as a cloud of ink dots gathering into an
 // eye, a spectacle lens of real glass over a reading chart.
-// Three.js r185 (assets/vendor/three) is loaded once the page has loaded, and only for the scenes
-// that come near the screen; without WebGL 2 the page stays as it is. A scene plays while it is on
-// screen; its button pauses it (the pointer still turns it).
+// Three.js r185 (assets/vendor/three) is loaded once the page has loaded, at a calm moment, and the
+// scenes of the page are made then, wherever they are: loading three.js (three quarters of a
+// megabyte to read) and building a scene are long pieces of work, which, made when a scene came near
+// the screen, stopped the page in the middle of a scroll. Without WebGL 2 the page stays as it is. A
+// scene plays while it is on screen, as finely as the graphics chip allows (fineness.js); its button
+// pauses it (the pointer still turns it).
+
+import { fineness } from './fineness.js';
 
 const stages = [...document.querySelectorAll('[data-scene3d]')];
 
@@ -20,19 +25,15 @@ const hasWebGL2 = () => {
 
 if (stages.length && hasWebGL2()) {
   const whenIdle = (task) => ('requestIdleCallback' in window ? window.requestIdleCallback(task, { timeout: 1500 }) : window.setTimeout(task, 300));
-  const watch = () => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.filter((entry) => entry.isIntersecting).forEach((entry) => {
-        observer.unobserve(entry.target);
-        start(entry.target);
-      });
-    }, { rootMargin: '400px 0px' });
-    stages.forEach((stage) => observer.observe(stage));
+  const startAll = async () => {
+    for (const stage of stages) {
+      await start(stage);
+    }
   };
   if (document.readyState === 'complete') {
-    whenIdle(watch);
+    whenIdle(startAll);
   } else {
-    window.addEventListener('load', () => whenIdle(watch), { once: true });
+    window.addEventListener('load', () => whenIdle(startAll), { once: true });
   }
 }
 
@@ -89,6 +90,10 @@ async function run(THREE, stage, scene) {
   renderer.toneMapping = THREE.NeutralToneMapping;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const isSmall = () => stage.clientWidth < 520;
+  // At most 2 pixels per point (1.75 on a small scene), phones starting at 1.5, never under 1.
+  const finest = Math.min(window.devicePixelRatio || 1, isSmall() ? 1.75 : 2);
+  const isTouch = window.matchMedia('(hover: none)').matches;
+  const fine = fineness({ max: finest, min: Math.min(finest, 1), start: isTouch ? Math.min(finest, 1.5) : finest, onChange: () => resize() });
   let environment = null;
   const kit = {
     stage,
@@ -142,7 +147,8 @@ async function run(THREE, stage, scene) {
   let isCompiled = false;
   const follow = (value, target, rate, dt) => value + (target - value) * (1 - Math.exp(-rate * dt));
 
-  const frame = () => {
+  const frame = (tick) => {
+    fine.frame(tick);
     timer.update();
     // The time of the scene is real time, whatever the number of frames per second; the softened
     // movements use a bounded step, so that a slow frame never makes them jump.
@@ -163,6 +169,7 @@ async function run(THREE, stage, scene) {
     if (canRest) {
       renderer.setAnimationLoop(null);
       isRunning = false;
+      fine.rest();
     }
   };
 
@@ -187,7 +194,7 @@ async function run(THREE, stage, scene) {
   const resize = () => {
     const width = Math.max(1, stage.clientWidth);
     const height = Math.max(1, stage.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isSmall() ? 1.75 : 2));
+    renderer.setPixelRatio(fine.ratio);
     renderer.setSize(width, height, false);
     view.resize(width, height);
     if (!isRunning && isCompiled) {
@@ -196,7 +203,7 @@ async function run(THREE, stage, scene) {
     wake();
   };
 
-  new IntersectionObserver((entries) => {
+  new ViewWatcher((entries) => {
     state.isVisible = entries[0].isIntersecting;
     wake();
   }).observe(stage);

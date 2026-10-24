@@ -215,7 +215,7 @@
         wake();
       }
     }, { passive: true });
-    new IntersectionObserver(([entry]) => {
+    new ViewWatcher(([entry]) => {
       if (!entry.isIntersecting) {
         pointer.inside = false;
         release();

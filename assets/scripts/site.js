@@ -219,10 +219,10 @@
   }
 
   // Photos drift slightly inside their frame while scrolling (only those on screen are updated).
-  if (!reduceMotion.matches && 'IntersectionObserver' in window) {
+  if (!reduceMotion.matches && 'ViewWatcher' in window) {
     const frames = [...document.querySelectorAll('[data-parallax]')].map((frame) => ({ frame, image: frame.querySelector('img') || frame, top: 0, height: 0 }));
     const visibleFrames = new Set();
-    const frameObserver = new IntersectionObserver((entries) => {
+    const frameObserver = new ViewWatcher((entries) => {
       entries.forEach((entry) => {
         const item = frames.find((each) => each.frame === entry.target);
         if (entry.isIntersecting) {
@@ -266,10 +266,10 @@
   // Surgeries page: the large drawing behind each chapter drifts with the scroll (--drift, from -1
   // to 1 as it crosses the screen) and, under a mouse, leans away from the pointer (--ax, --ay).
   const atmos = [...document.querySelectorAll('[data-atmo]')];
-  if (atmos.length && !reduceMotion.matches && 'IntersectionObserver' in window) {
+  if (atmos.length && !reduceMotion.matches && 'ViewWatcher' in window) {
     const shownAtmos = new Set();
     const atmoBoxes = new Map(atmos.map((atmo) => [atmo, { top: 0, height: 0 }]));
-    const atmoObserver = new IntersectionObserver((entries) => {
+    const atmoObserver = new ViewWatcher((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           shownAtmos.add(entry.target);
@@ -312,13 +312,15 @@
     }
   }
 
-  // ---------- Reveals: once the element is on screen, it rises into place by itself ----------
-  // Elements arriving together follow each other (70 ms apart) unless the page sets their delay.
-  const REVEAL_STAGGER = 0.07;
-  const REVEAL_STAGGER_MAX = 6;
+  // ---------- Reveals: as the element reaches the screen, it rises into place by itself ----------
+  // A little before it reaches the screen: a phone shows the page scrolled before the script hears
+  // of it. Elements arriving together follow each other (40 ms apart, three at most) unless the page
+  // sets their delay.
+  const REVEAL_STAGGER = 0.04;
+  const REVEAL_STAGGER_MAX = 3;
   const revealItems = [...document.querySelectorAll('[data-reveal], .footer-wordmark')];
   const revealAll = () => revealItems.forEach((item) => item.classList.add('is-visible'));
-  if ('IntersectionObserver' in window && !reduceMotion.matches) {
+  if ('ViewWatcher' in window && !reduceMotion.matches) {
     const reveal = (items) => items.forEach((item, index) => {
       const hasOwnDelay = item.style.getPropertyValue('--reveal-delay') !== '';
       if (!hasOwnDelay) {
@@ -327,9 +329,9 @@
       item.classList.add('is-visible');
       revealObserver.unobserve(item);
     });
-    const revealObserver = new IntersectionObserver((entries) => {
+    const revealObserver = new ViewWatcher((entries) => {
       reveal(entries.filter((entry) => entry.isIntersecting).map((entry) => entry.target));
-    }, { rootMargin: '0px 0px -6% 0px', threshold: 0 });
+    }, { rootMargin: '0px 0px 6% 0px', threshold: 0 });
     revealItems.forEach((item) => revealObserver.observe(item));
     // At the very end of the page, what is still waiting at the bottom of the screen shows too.
     scrollTasks.push(() => {
@@ -343,23 +345,27 @@
   }
 
   // Words, letters and parts of the hero that have come into place keep their last look without
-  // their animation (.is-arrived): an animation held at its end keeps each of them on a layer.
-  const ARRIVALS = new Set(['letter-focus', 'hero-in']);
+  // their animation (.is-arrived): an animation held at its end keeps each of them on a layer. A
+  // word coming into focus has arrived when its sharp layer has; an opened photo, when its frame and
+  // its picture have.
+  const ARRIVALS = new Set(['focus-in', 'hero-in', 'aperture-disc', 'aperture-disc-picture', 'aperture-band', 'aperture-band-picture']);
   document.addEventListener('animationend', (event) => {
-    if (ARRIVALS.has(event.animationName)) {
+    if (event.animationName === 'focus-sharp') {
+      event.target.parentElement.classList.add('is-arrived');
+    } else if (ARRIVALS.has(event.animationName)) {
       event.target.classList.add('is-arrived');
     }
   });
 
   // ---------- Titles focus word by word; photos open like a pupil ----------
-  // Each kind waits until it is well inside the screen, so the effect is seen, then plays once.
+  // Each kind plays once, as it reaches the screen.
   const playOnce = (selector, className, options) => {
     const items = [...document.querySelectorAll(selector)];
-    if (!('IntersectionObserver' in window) || reduceMotion.matches) {
+    if (!('ViewWatcher' in window) || reduceMotion.matches) {
       items.forEach((item) => item.classList.add(className));
       return;
     }
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new ViewWatcher((entries) => {
       entries.filter((entry) => entry.isIntersecting).forEach((entry) => {
         entry.target.classList.add(className);
         observer.unobserve(entry.target);
@@ -367,9 +373,62 @@
     }, options);
     items.forEach((item) => observer.observe(item));
   };
-  playOnce('[data-focus]', 'is-focused', { rootMargin: '0px 0px -8% 0px' });
-  // The clipped photo only counts by its visible disc: it opens once that disc is on screen.
-  playOnce('[data-aperture]', 'is-open', { rootMargin: '0px 0px -12% 0px' });
+  // Each word (each letter of the title of the home page, each line of the waiting team photo) gets
+  // a blurred copy of itself over it: the copy shows first, then the sharp word while the copy goes
+  // (site.css). Only opacities change, which the screen does by itself; a blur that changes is drawn
+  // again by the browser at every frame. A title that has already begun when the script comes (the
+  // title of the page plays from the first paint) keeps its entrance, without copies.
+  const FOCUS_HOLDERS = '[data-focus] .w, .hero__title-main .letter, .team-photo__title, .team-photo__text';
+  const hasBegun = (holder) => holder.getAnimations().some((animation) => animation.effect?.getComputedTiming().progress > 0);
+  const addFocusCopy = (holder) => {
+    const sharp = document.createElement('span');
+    sharp.className = 'focus__sharp';
+    sharp.append(...holder.childNodes);
+    const soft = sharp.cloneNode(true);
+    soft.className = 'focus__soft';
+    soft.setAttribute('aria-hidden', 'true');
+    holder.append(sharp, soft);
+    holder.classList.add('has-focus-copy');
+  };
+  if ('ViewWatcher' in window && !reduceMotion.matches) {
+    const focusGroups = new Map();
+    document.querySelectorAll(FOCUS_HOLDERS).forEach((holder) => {
+      const group = holder.closest('[data-focus], .hero__title-main') || holder;
+      focusGroups.set(group, [...(focusGroups.get(group) || []), holder]);
+    });
+    focusGroups.forEach((holders) => {
+      if (!holders.some(hasBegun)) {
+        holders.forEach(addFocusCopy);
+      }
+    });
+  }
+  playOnce('[data-focus]', 'is-focused', { rootMargin: '0px 0px 3% 0px' });
+
+  // Photos open as soon as they reach the screen, like a pupil widening or like eyelids (site.css):
+  // the picture is held in a frame of its own that grows while the picture grows back by the inverse
+  // amount, so that it seems to stay in place; only scales change, which the screen does by itself
+  // (a cut that changes is drawn again by the browser at every frame). A disc a little larger than
+  // the diagonal of the photo cuts nothing once open.
+  const apertures = 'ViewWatcher' in window && !reduceMotion.matches ? [...document.querySelectorAll('[data-aperture]')] : [];
+  apertures.forEach((photo) => {
+    const picture = photo.querySelector(':scope > picture');
+    if (picture) {
+      const frame = document.createElement('span');
+      frame.className = 'aperture';
+      picture.replaceWith(frame);
+      frame.append(picture);
+    }
+  });
+  const sizeApertures = () => apertures.forEach((photo) => {
+    const width = photo.offsetWidth;
+    const height = photo.offsetHeight;
+    photo.style.setProperty('--aperture-w', `${width}px`);
+    photo.style.setProperty('--aperture-h', `${height}px`);
+    photo.style.setProperty('--aperture-d', `${Math.ceil(Math.hypot(width, height) * 1.06)}px`);
+  });
+  sizeApertures();
+  measureTasks.push(sizeApertures);
+  playOnce('[data-aperture]', 'is-open', { rootMargin: '0px 0px 0px 0px' });
   // Home: the line joining the three steps of the consultation draws itself; on the intervention
   // pages, the line over the steps of the journey.
   playOnce('.visit__steps', 'is-drawn', { threshold: 0.35 });
@@ -445,11 +504,11 @@
       drawing.getBoundingClientRect();
       drawing.classList.add('is-playing');
     };
-    if (!('IntersectionObserver' in window)) {
+    if (!('ViewWatcher' in window)) {
       drawing.classList.add('is-playing');
       return;
     }
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new ViewWatcher((entries) => {
       if (entries[0].isIntersecting) {
         play();
         observer.disconnect();
@@ -487,8 +546,8 @@
 
   // Home: once most of the hero is left behind, the eye goes out of focus; back on it, it clears.
   const heroStage = document.querySelector('.hero__stage');
-  if (heroStage && 'IntersectionObserver' in window) {
-    new IntersectionObserver(([entry]) => {
+  if (heroStage && 'ViewWatcher' in window) {
+    new ViewWatcher(([entry]) => {
       const isLeft = entry.intersectionRatio < 0.45 && entry.boundingClientRect.top < 0;
       heroStage.classList.toggle('is-away', isLeft);
     }, { threshold: [0, 0.45, 1] }).observe(heroStage.closest('section') || heroStage);
@@ -504,8 +563,8 @@
   document.querySelectorAll('[data-lamp]').forEach((view) => {
     const figure = view.querySelector('[data-lamp-figure]');
     const svg = figure?.querySelector('svg');
-    const beams = figure ? [...figure.querySelectorAll('.lamp__beam')] : [];
-    if (!svg || !beams.length) {
+    const lightLayer = figure?.querySelector('[data-lamp-light]');
+    if (!svg || !lightLayer) {
       return;
     }
     const SIZE = 600;
@@ -520,10 +579,7 @@
     });
     const pupilAt = spots.find((spot) => spot.item.dataset.spot === 'cristallin')?.at;
     let position = [...spots[0].at];
-    let goal = [...position];
     let active = null;
-    let frame = 0;
-    let lastTime = 0;
     let isTaken = false;
     let isPaused = false;
     let isOnScreen = false;
@@ -627,11 +683,12 @@
       catchlight?.style.setProperty('translate', `${(dx * 0.05).toFixed(2)}px ${(dy * 0.05).toFixed(2)}px`);
     };
 
+    // The light goes where it is sent: the stylesheet glides it there, and the gaze with it
+    // (transitions the screen makes by itself; a script moving them at each frame made the browser
+    // draw the eye again at each frame). The subject under the light is shown at once.
     const light = () => {
-      beams.forEach((beam) => {
-        beam.setAttribute('cx', position[0].toFixed(1));
-        beam.setAttribute('cy', position[1].toFixed(1));
-      });
+      lightLayer.style.setProperty('--bx', position[0].toFixed(1));
+      lightLayer.style.setProperty('--by', position[1].toFixed(1));
       let nearest = null;
       let best = NEAR;
       spots.forEach((spot) => {
@@ -648,27 +705,9 @@
       look();
     };
 
-    const glide = (now) => {
-      frame = 0;
-      const elapsed = lastTime ? Math.min(now - lastTime, 100) : 16;
-      lastTime = now;
-      const ease = 1 - Math.exp(-elapsed / 150);
-      position = position.map((value, i) => value + (goal[i] - value) * ease);
-      const isThere = Math.hypot(goal[0] - position[0], goal[1] - position[1]) < 0.5;
-      if (isThere) {
-        position = [...goal];
-        lastTime = 0;
-      }
-      light();
-      if (!isThere) {
-        frame = window.requestAnimationFrame(glide);
-      }
-    };
     const aim = (point) => {
-      goal = point;
-      if (!frame) {
-        frame = window.requestAnimationFrame(glide);
-      }
+      position = point;
+      light();
     };
 
     // Pointer: in drawing units, kept inside the round view.
@@ -768,13 +807,15 @@
       showTourState();
       setActive(null);
       getComputedStyle(figure).opacity;
-      // Off screen until now: the light can jump to the first subject.
+      // Off screen until now: the light jumps to the first subject (no glide).
+      figure.classList.add('is-jumping');
       position = [...spots[0].at];
-      goal = [...position];
       light();
+      getComputedStyle(lightLayer.firstElementChild).translate;
+      figure.classList.remove('is-jumping');
     };
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => {
+    if ('ViewWatcher' in window) {
+      new ViewWatcher((entries) => {
         const wasOnScreen = isOnScreen;
         isOnScreen = entries[0].isIntersecting;
         if (isOnScreen && !wasOnScreen && !isPaused) {
@@ -872,8 +913,8 @@
       pointerInside = false;
       startTime = performance.now();
     });
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => {
+    if ('ViewWatcher' in window) {
+      new ViewWatcher((entries) => {
         isVisible = entries[0].isIntersecting;
         start();
       }).observe(chart);
@@ -979,11 +1020,11 @@
   // ---------- Numbers that count up to their value when they come on screen ----------
   document.querySelectorAll('[data-count-to]').forEach((number) => {
     const goal = Number(number.dataset.countTo);
-    if (reduceMotion.matches || !('IntersectionObserver' in window) || !goal) {
+    if (reduceMotion.matches || !('ViewWatcher' in window) || !goal) {
       return;
     }
     number.textContent = '0';
-    const observer = new IntersectionObserver(([entry]) => {
+    const observer = new ViewWatcher(([entry]) => {
       if (!entry.isIntersecting) {
         return;
       }
@@ -1080,9 +1121,9 @@
 
   // ---------- Table of contents: section being read ----------
   const tocLinks = [...document.querySelectorAll('.toc a[href^="#"]')];
-  if (tocLinks.length && 'IntersectionObserver' in window) {
+  if (tocLinks.length && 'ViewWatcher' in window) {
     const byId = new Map(tocLinks.map((link) => [link.getAttribute('href').slice(1), link]));
-    const tocObserver = new IntersectionObserver((entries) => {
+    const tocObserver = new ViewWatcher((entries) => {
       entries.filter((entry) => entry.isIntersecting).forEach((entry) => {
         tocLinks.forEach((link) => link.classList.toggle('is-active', link === byId.get(entry.target.id)));
       });
@@ -1226,8 +1267,8 @@
     if (schema.hasAttribute('data-driven')) {
       schema.addEventListener('schema:goto', (event) => show(event.detail.step));
       show(1);
-      if ('IntersectionObserver' in window) {
-        new IntersectionObserver((entries) => schema.classList.toggle('is-visible', entries[0].isIntersecting)).observe(schema);
+      if ('ViewWatcher' in window) {
+        new ViewWatcher((entries) => schema.classList.toggle('is-visible', entries[0].isIntersecting)).observe(schema);
       } else {
         schema.classList.add('is-visible');
       }
@@ -1269,8 +1310,8 @@
       schedule();
     };
 
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => updateVisibility(entries[0].isIntersecting), { threshold: 0.35 }).observe(schema);
+    if ('ViewWatcher' in window) {
+      new ViewWatcher((entries) => updateVisibility(entries[0].isIntersecting), { threshold: 0.35 }).observe(schema);
     } else {
       updateVisibility(true);
     }
@@ -1403,8 +1444,8 @@
     });
     playButton?.addEventListener('click', () => setPlaying(!isPlaying));
 
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => {
+    if ('ViewWatcher' in window) {
+      new ViewWatcher((entries) => {
         isVisible = entries[0].isIntersecting;
         show(step);
         schedule();
@@ -1433,9 +1474,9 @@
   // shows the chapter being read.
   const chapterNav = document.querySelector('[data-chapter-nav]');
   const pageIndex = document.querySelector('.bloc-index');
-  if (chapterNav && pageIndex && 'IntersectionObserver' in window) {
+  if (chapterNav && pageIndex && 'ViewWatcher' in window) {
     const links = [...chapterNav.querySelectorAll('a[href^="#"]')];
-    new IntersectionObserver(([entry]) => {
+    new ViewWatcher(([entry]) => {
       const isPassed = !entry.isIntersecting && entry.boundingClientRect.top < 0;
       chapterNav.classList.toggle('is-shown', isPassed);
     }).observe(pageIndex);
@@ -1450,7 +1491,7 @@
       }
     });
     // The chapter crossing the middle of the screen is the one being read.
-    const reading = new IntersectionObserver((entries) => {
+    const reading = new ViewWatcher((entries) => {
       entries.filter((entry) => entry.isIntersecting).forEach((entry) => setCurrent(entry.target.id));
     }, { rootMargin: '-45% 0px -50% 0px' });
     document.querySelectorAll('[data-chapter]').forEach((chapter) => reading.observe(chapter));

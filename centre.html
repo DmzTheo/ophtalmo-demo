@@ -24,8 +24,10 @@
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
   <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}</style>
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
   <link rel="stylesheet" href="assets/stylesheets/site.css">
+  <script src="assets/scripts/view.js" defer></script>
+  <script src="assets/scripts/pictures.js" defer></script>
   <script src="assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
   <script src="assets/scripts/site.js" defer></script>
@@ -232,7 +234,7 @@
 
   <main id="contenu">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"></div>
+      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/optique.svg#d"/></svg></div>
       <div class="container page-head__grid page-head__grid--single">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -262,10 +264,10 @@
           <div class="cabinet-block__grid">
             <div class="cabinet-block__photos">
               <div class="cabinet-block__photo cabinet-block__photo--main" data-parallax data-aperture="lid" data-tilt="4">
-                <picture><source type="image/webp" srcset="assets/img/cabinet-miramas-600.webp 600w, assets/img/cabinet-miramas-900.webp 900w, assets/img/cabinet-miramas-1300.webp 1300w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/cabinet-miramas-900.jpg" srcset="assets/img/cabinet-miramas-600.jpg 600w, assets/img/cabinet-miramas-900.jpg 900w, assets/img/cabinet-miramas-1300.jpg 1300w" sizes="(max-width: 960px) 100vw, 50vw" width="1300" height="1733" alt="Le jardin et l'entrée du centre des spécialistes, à Miramas" loading="lazy" decoding="async"></picture>
+                <picture data-defer><source type="image/webp" data-srcset="assets/img/cabinet-miramas-600.webp 600w, assets/img/cabinet-miramas-900.webp 900w, assets/img/cabinet-miramas-1300.webp 1300w" sizes="(max-width: 960px) 100vw, 50vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/cabinet-miramas-900.jpg" data-srcset="assets/img/cabinet-miramas-600.jpg 600w, assets/img/cabinet-miramas-900.jpg 900w, assets/img/cabinet-miramas-1300.jpg 1300w" sizes="(max-width: 960px) 100vw, 50vw" width="1300" height="1130" alt="Le jardin et l'entrée du centre des spécialistes, à Miramas" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/cabinet-miramas-600.webp 600w, assets/img/cabinet-miramas-900.webp 900w, assets/img/cabinet-miramas-1300.webp 1300w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/cabinet-miramas-900.jpg" srcset="assets/img/cabinet-miramas-600.jpg 600w, assets/img/cabinet-miramas-900.jpg 900w, assets/img/cabinet-miramas-1300.jpg 1300w" sizes="(max-width: 960px) 100vw, 50vw" width="1300" height="1130" alt="Le jardin et l'entrée du centre des spécialistes, à Miramas" decoding="async" loading="lazy"></picture></noscript>
               </div>
               <div class="cabinet-block__photo cabinet-block__photo--second" data-parallax data-aperture="lid" style="--open-delay: 0.18s">
-                <picture><source type="image/webp" srcset="assets/img/centre-portail-700.webp 700w, assets/img/centre-portail-1100.webp 1100w, assets/img/centre-portail-1600.webp 1600w, assets/img/centre-portail-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/centre-portail-1100.jpg" srcset="assets/img/centre-portail-700.jpg 700w, assets/img/centre-portail-1100.jpg 1100w, assets/img/centre-portail-1600.jpg 1600w, assets/img/centre-portail-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="2200" height="1545" alt="Le portail du centre médical de Miramas, ouvert sur le jardin" loading="lazy" decoding="async"></picture>
+                <picture data-defer><source type="image/webp" data-srcset="assets/img/centre-portail-700.webp 700w, assets/img/centre-portail-1100.webp 1100w, assets/img/centre-portail-1600.webp 1600w, assets/img/centre-portail-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/centre-portail-1100.jpg" data-srcset="assets/img/centre-portail-700.jpg 700w, assets/img/centre-portail-1100.jpg 1100w, assets/img/centre-portail-1600.jpg 1600w, assets/img/centre-portail-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="2200" height="1545" alt="Le portail du centre médical de Miramas, ouvert sur le jardin" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/centre-portail-700.webp 700w, assets/img/centre-portail-1100.webp 1100w, assets/img/centre-portail-1600.webp 1600w, assets/img/centre-portail-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/centre-portail-1100.jpg" srcset="assets/img/centre-portail-700.jpg 700w, assets/img/centre-portail-1100.jpg 1100w, assets/img/centre-portail-1600.jpg 1600w, assets/img/centre-portail-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="2200" height="1545" alt="Le portail du centre médical de Miramas, ouvert sur le jardin" decoding="async" loading="lazy"></picture></noscript>
               </div>
             </div>
             <div class="cabinet-block__info" data-reveal>
@@ -295,7 +297,7 @@
             </div>
           </div>
           <div class="map-card" data-reveal>
-            <iframe title="Plan d'accès au cabinet de Miramas" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2890.0623238543135!2d5.0018125709686565!3d43.58441815824707!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12b603bf3a8aa1a7%3A0x6bf4b15a8ab8eada!2sCentre%20de%20sp%C3%A9cialiste!5e0!3m2!1sfr!2sfr!4v1571824916552!5m2!1sfr!2sfr" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <iframe title="Plan d'accès au cabinet de Miramas" allowfullscreen referrerpolicy="no-referrer-when-downgrade" data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2890.0623238543135!2d5.0018125709686565!3d43.58441815824707!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12b603bf3a8aa1a7%3A0x6bf4b15a8ab8eada!2sCentre%20de%20sp%C3%A9cialiste!5e0!3m2!1sfr!2sfr!4v1571824916552!5m2!1sfr!2sfr" data-defer></iframe><noscript><iframe title="Plan d'accès au cabinet de Miramas" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2890.0623238543135!2d5.0018125709686565!3d43.58441815824707!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12b603bf3a8aa1a7%3A0x6bf4b15a8ab8eada!2sCentre%20de%20sp%C3%A9cialiste!5e0!3m2!1sfr!2sfr!4v1571824916552!5m2!1sfr!2sfr" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe></noscript>
           </div>
         </article>
 
@@ -303,7 +305,7 @@
           <div class="cabinet-block__grid">
             <div class="cabinet-block__photos">
               <div class="cabinet-block__photo cabinet-block__photo--main cabinet-block__photo--tall" data-parallax data-aperture data-tilt="4">
-                <picture><source type="image/webp" srcset="assets/img/pole-morgan-700.webp 700w, assets/img/pole-morgan-1100.webp 1100w, assets/img/pole-morgan-1600.webp 1600w, assets/img/pole-morgan-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/pole-morgan-1100.jpg" srcset="assets/img/pole-morgan-700.jpg 700w, assets/img/pole-morgan-1100.jpg 1100w, assets/img/pole-morgan-1600.jpg 1600w, assets/img/pole-morgan-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="2200" height="1238" alt="Perspective de la maison de santé Pôle Morgan, à Salon-de-Provence" loading="lazy" decoding="async"></picture>
+                <picture data-defer><source type="image/webp" data-srcset="assets/img/pole-morgan-700.webp 700w, assets/img/pole-morgan-1100.webp 1100w, assets/img/pole-morgan-1600.webp 1600w, assets/img/pole-morgan-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/pole-morgan-1100.jpg" data-srcset="assets/img/pole-morgan-700.jpg 700w, assets/img/pole-morgan-1100.jpg 1100w, assets/img/pole-morgan-1600.jpg 1600w, assets/img/pole-morgan-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="1671" height="1238" alt="Perspective de la maison de santé Pôle Morgan, à Salon-de-Provence" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/pole-morgan-700.webp 700w, assets/img/pole-morgan-1100.webp 1100w, assets/img/pole-morgan-1600.webp 1600w, assets/img/pole-morgan-2200.webp 2200w" sizes="(max-width: 960px) 100vw, 50vw"><img src="assets/img/pole-morgan-1100.jpg" srcset="assets/img/pole-morgan-700.jpg 700w, assets/img/pole-morgan-1100.jpg 1100w, assets/img/pole-morgan-1600.jpg 1600w, assets/img/pole-morgan-2200.jpg 2200w" sizes="(max-width: 960px) 100vw, 50vw" width="1671" height="1238" alt="Perspective de la maison de santé Pôle Morgan, à Salon-de-Provence" decoding="async" loading="lazy"></picture></noscript>
               </div>
             </div>
             <div class="cabinet-block__info" data-reveal>
@@ -333,7 +335,7 @@
             </div>
           </div>
           <div class="map-card" data-reveal>
-            <iframe title="Plan d'accès au cabinet de Salon-de-Provence" src="https://maps.google.com/maps?q=P%C3%B4le%20Morgan%20Provence%2C%20Salon-de-Provence&amp;hl=fr&amp;z=16&amp;output=embed" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <iframe title="Plan d'accès au cabinet de Salon-de-Provence" allowfullscreen referrerpolicy="no-referrer-when-downgrade" data-src="https://maps.google.com/maps?q=P%C3%B4le%20Morgan%20Provence%2C%20Salon-de-Provence&amp;hl=fr&amp;z=16&amp;output=embed" data-defer></iframe><noscript><iframe title="Plan d'accès au cabinet de Salon-de-Provence" src="https://maps.google.com/maps?q=P%C3%B4le%20Morgan%20Provence%2C%20Salon-de-Provence&amp;hl=fr&amp;z=16&amp;output=embed" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe></noscript>
           </div>
         </article>
       </div>
@@ -371,7 +373,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

@@ -24,8 +24,9 @@
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}</style>
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
   <link rel="stylesheet" href="../assets/stylesheets/site.css">
+  <script src="../assets/scripts/view.js" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js" defer></script>
   <script src="../assets/scripts/site.js" defer></script>
@@ -176,7 +177,7 @@
 
   <main id="contenu" data-op="paupieres">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"></div>
+      <div class="drawing drawing--page" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></div>
       <div class="container page-head__grid">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -192,7 +193,7 @@
         </div>
         <div class="page-head__visual">
           <div class="split__media split__media--tall page-head__photo" style="--focus: 62% 50%" data-aperture>
-            <picture class="eager"><source type="image/webp" srcset="../assets/img/paupieres-portrait-600.webp 600w, ../assets/img/paupieres-portrait-1000.webp 1000w, ../assets/img/paupieres-portrait-1400.webp 1400w" sizes="(max-width: 900px) 100vw, 40vw"><img src="../assets/img/paupieres-portrait-1000.jpg" srcset="../assets/img/paupieres-portrait-600.jpg 600w, ../assets/img/paupieres-portrait-1000.jpg 1000w, ../assets/img/paupieres-portrait-1400.jpg 1400w" sizes="(max-width: 900px) 100vw, 40vw" width="1400" height="933" alt="Portrait d'une femme souriante aux cheveux gris" loading="lazy" decoding="async"></picture>
+            <picture><source type="image/webp" srcset="../assets/img/paupieres-portrait-600.webp 600w, ../assets/img/paupieres-portrait-1000.webp 1000w, ../assets/img/paupieres-portrait-1400.webp 1400w" sizes="(max-width: 900px) 100vw, 40vw"><img src="../assets/img/paupieres-portrait-1000.jpg" srcset="../assets/img/paupieres-portrait-600.jpg 600w, ../assets/img/paupieres-portrait-1000.jpg 1000w, ../assets/img/paupieres-portrait-1400.jpg 1400w" sizes="(max-width: 900px) 100vw, 40vw" width="1400" height="933" alt="Portrait d'une femme souriante aux cheveux gris" decoding="async" fetchpriority="high"></picture>
           </div>
         </div>
       </div>
@@ -205,7 +206,7 @@
           <h2 class="film__title" id="film-title">En quatre temps</h2>
         </div>
         <div class="film__grid">
-          <div class="film__scene"><figure class="schema schema--paupieres schema--stage schema--dark schema--focus is-step-1" data-schema data-driven data-steps="4" data-step="1" style="--schema-ratio:4 / 3;--s1x:0.412;--s1y:0.527;--s1r:0.237;--s2x:0.42;--s2y:0.427;--s2r:0.237;--s3x:0.42;--s3y:0.427;--s3r:0.237;--s4x:0.42;--s4y:0.47;--s4r:0.25" aria-hidden="true">
+          <div class="film__scene"><figure class="schema schema--paupieres schema--stage schema--dark schema--focus is-step-1" data-schema data-driven data-steps="4" data-step="1" style="--schema-ratio:4 / 3;--s1u:-0.0875;--s1v:0.02;--s1r:0.2375;--s2u:-0.08;--s2v:-0.055;--s2r:0.2375;--s3u:-0.08;--s3v:-0.055;--s3r:0.2375;--s4u:-0.08;--s4v:-0.0225;--s4r:0.25" aria-hidden="true">
       <div class="schema__stage">
         <div class="schema__canvas">
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" focusable="false"><g transform="translate(0 56)">
@@ -225,13 +226,10 @@
     <g class="until-1"><g class="weight"><path d="M300 168V200M289 189L300 200L311 189" class="accent"/></g></g>
     <g class="from-3 until-3"><path d="M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z" class="wound"/></g>
     <g class="from-2 until-3"><g class="lift-off"><path d="M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z" class="excision"/></g></g>
-    <g class="from-2 until-2"><path d="M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z" class="pen" pathLength="1"/><g class="pen-tool" style="offset-path:path('M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z')"><path d="M0 0L30 -44" class="instrument-thick"/><circle cx="0" cy="0" r="3.2" class="dot-accent"/></g></g>
+    <g class="from-2 until-2"><g class="drawn"><path d="M184 246C187.4 244 192.6 240.4 198.8 236.2" class="pen" style="--t:0.000;--u:0.112"/><path d="M198.8 236.2C203.3 233.1 208.3 229.7 213.6 226.3" class="pen" style="--t:0.112;--u:0.045"/><path d="M213.6 226.3C218.5 223.2 223.7 220.1 228.9 217.3" class="pen" style="--t:0.158;--u:0.034"/><path d="M228.9 217.3C234.3 214.4 239.7 211.8 245 209.7" class="pen" style="--t:0.192;--u:0.029"/><path d="M245 209.7C246.7 209.1 248.4 208.5 250 208C253.9 206.8 257.9 205.6 262.1 204.6" class="pen" style="--t:0.221;--u:0.025"/><path d="M262.1 204.6C267.6 203.2 273.5 202 279.5 201" class="pen" style="--t:0.246;--u:0.023"/><path d="M279.5 201C285.2 200 291.1 199.1 297.1 198.5" class="pen" style="--t:0.269;--u:0.021"/><path d="M297.1 198.5C302.9 197.8 308.9 197.2 314.8 196.8" class="pen" style="--t:0.290;--u:0.020"/><path d="M314.8 196.8C320.8 196.4 326.7 196.2 332.5 196.1" class="pen" style="--t:0.310;--u:0.019"/><path d="M332.5 196.1C335.1 196 337.5 196 340 196C343.4 196 346.8 196.1 350.3 196.2" class="pen" style="--t:0.328;--u:0.018"/><path d="M350.3 196.2C356.2 196.3 362.1 196.6 368.1 197.1" class="pen" style="--t:0.346;--u:0.017"/><path d="M368.1 197.1C374 197.5 379.9 198.1 385.8 198.8" class="pen" style="--t:0.363;--u:0.016"/><path d="M385.8 198.8C391.8 199.6 397.7 200.5 403.4 201.5" class="pen" style="--t:0.380;--u:0.016"/><path d="M403.4 201.5C409.5 202.6 415.3 203.9 420.7 205.3" class="pen" style="--t:0.396;--u:0.016"/><path d="M420.7 205.3C424 206.1 427.1 207 430 208C432.6 208.8 435.1 209.8 437.6 211" class="pen" style="--t:0.411;--u:0.015"/><path d="M437.6 211C443 213.4 448.2 216.3 453.2 219.5" class="pen" style="--t:0.426;--u:0.015"/><path d="M453.2 219.5C458.4 222.8 463.3 226.4 467.7 229.8" class="pen" style="--t:0.441;--u:0.015"/><path d="M467.7 229.8C473.1 234 477.9 237.9 481.6 240.8" class="pen" style="--t:0.456;--u:0.015"/><path d="M481.6 240.8C483.3 242.1 484.8 243.2 486 244C484.2 241.6 482 238 479.4 233.5" class="pen" style="--t:0.471;--u:0.015"/><path d="M479.4 233.5C476.8 229.1 473.8 223.8 470.5 218.2" class="pen" style="--t:0.485;--u:0.015"/><path d="M470.5 218.2C467.6 213.3 464.4 208.1 461.1 203" class="pen" style="--t:0.500;--u:0.015"/><path d="M461.1 203C457.9 198.1 454.4 193.1 450.9 188.5" class="pen" style="--t:0.515;--u:0.015"/><path d="M450.9 188.5C447.1 183.6 443.1 179 439.1 175.2" class="pen" style="--t:0.529;--u:0.015"/><path d="M439.1 175.2C436.1 172.4 433.1 169.9 430 168C428.3 166.9 426.5 165.9 424.6 164.9" class="pen" style="--t:0.544;--u:0.015"/><path d="M424.6 164.9C419.5 162.3 413.9 160.2 408.1 158.5" class="pen" style="--t:0.559;--u:0.015"/><path d="M408.1 158.5C402.5 156.9 396.7 155.7 390.7 154.8" class="pen" style="--t:0.574;--u:0.015"/><path d="M390.7 154.8C384.9 154 379 153.4 373 153" class="pen" style="--t:0.589;--u:0.016"/><path d="M373 153C367.1 152.6 361.1 152.4 355.2 152.2" class="pen" style="--t:0.604;--u:0.016"/><path d="M355.2 152.2C350.1 152.1 345 152 340 152C339.2 152 338.3 152 337.5 152" class="pen" style="--t:0.620;--u:0.016"/><path d="M337.5 152C331.7 151.9 325.7 151.8 319.7 151.8" class="pen" style="--t:0.637;--u:0.017"/><path d="M319.7 151.8C313.8 151.8 307.8 151.9 301.9 152.2" class="pen" style="--t:0.654;--u:0.018"/><path d="M301.9 152.2C295.9 152.5 290 153 284.2 153.8" class="pen" style="--t:0.672;--u:0.019"/><path d="M284.2 153.8C278.2 154.6 272.4 155.8 266.7 157.3" class="pen" style="--t:0.690;--u:0.020"/><path d="M266.7 157.3C260.9 158.9 255.4 161 250.2 163.7" class="pen" style="--t:0.710;--u:0.021"/><path d="M250.2 163.7C248.8 164.4 247.4 165.2 246 166C242.6 168.1 239.1 170.8 235.7 173.9" class="pen" style="--t:0.731;--u:0.023"/><path d="M235.7 173.9C231.6 177.7 227.6 182.2 223.7 187" class="pen" style="--t:0.754;--u:0.025"/><path d="M223.7 187C220 191.5 216.4 196.3 213 201.2" class="pen" style="--t:0.779;--u:0.029"/><path d="M213 201.2C209.5 206.2 206.2 211.2 203.2 216" class="pen" style="--t:0.808;--u:0.034"/><path d="M203.2 216C199.7 221.4 196.6 226.6 193.7 231.1" class="pen" style="--t:0.842;--u:0.045"/><path d="M193.7 231.1C189.8 237.6 186.4 242.8 184 246" class="pen" style="--t:0.888;--u:0.112"/></g><g class="pen-tool" style="offset-path:path('M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z')"><path d="M0 0L30 -44" class="instrument-thick"/><circle cx="0" cy="0" r="3.2" class="dot-accent"/></g></g>
     <g class="from-3 until-3"><g class="blade-tool" style="offset-path:path('M184 246C195 239.7 224 216.3 250 208C276 199.7 310 196 340 196C370 196 405.7 200 430 208C454.3 216 476.7 238 486 244L486 244C476.7 231.3 454.3 183.3 430 168C405.7 152.7 370.7 152.3 340 152C309.3 151.7 272 150.3 246 166C220 181.7 194.3 232.7 184 246Z')"><path d="M0 0L34 -40" class="instrument"/><path d="M0 0L11 -3L5 -11Z" class="blade"/></g></g>
     <g class="from-4"><path d="M196.9 233.4L204.9 245.4" class="suture" style="--i:0"/><path d="M226.7 220.9L234.7 232.9" class="suture" style="--i:1"/><path d="M256.5 210.3L264.5 222.3" class="suture" style="--i:2"/><path d="M286.3 202.6L294.3 214.6" class="suture" style="--i:3"/><path d="M316.1 198.5L324.1 210.5" class="suture" style="--i:4"/><path d="M345.9 198.5L353.9 210.5" class="suture" style="--i:5"/><path d="M375.7 202.6L383.7 214.6" class="suture" style="--i:6"/><path d="M405.5 210.3L413.5 222.3" class="suture" style="--i:7"/><path d="M435.3 220.9L443.3 232.9" class="suture" style="--i:8"/><path d="M465.1 233.4L473.1 245.4" class="suture" style="--i:9"/><g class="needle-tool" style="offset-path:path('M186 246C191 243.8 205.9 237.1 215.8 233C225.7 228.9 235.7 224.8 245.6 221.3C255.5 217.8 265.5 214.6 275.4 212C285.3 209.5 295.3 207.4 305.2 206.1C315.1 204.7 325.1 204 335 204C344.9 204 354.9 204.7 364.8 206.1C374.7 207.4 384.7 209.5 394.6 212C404.5 214.6 414.5 217.8 424.4 221.3C434.3 224.8 444.3 228.9 454.2 233C464.1 237.1 479 243.8 484 246')"><path d="M0 0C4 -9 13 -13 22 -11" class="instrument"/><path d="M22 -11L44 -32" class="thread"/></g></g>
-    <defs><clipPath id="sp15-section"><circle cx="676" cy="300" r="120"/></clipPath></defs>
-    <g class="inset ">
-      <circle cx="676" cy="300" r="125" class="inset__halo"/>
-      <g clip-path="url(#sp15-section)">
+    <g class="inset"><circle cx="676" cy="300" r="125" class="inset__halo"/></g></g></svg><div class="schema__window schema__window--round" style="left:69.412%;top:29.883%;width:30.175%;height:40.233%"><svg class="schema__svg" viewBox="555.3 179.3 241.4 241.4" aria-hidden="true" focusable="false">
     <rect x="556" y="180" width="240" height="240" class="paper no-stroke"/>
     <path d="M740 180Q706 300 740 420" class="fill"/>
     <path d="M646 180C642 260 646 340 666 392" class="skin-line"/>
@@ -243,10 +241,8 @@
     <path d="M702 180C706 300 702 360 700 390" class="conj-line"/>
     <g class="until-2"><path d="M646 260C612 290 616 340 646 346" class="skin-fold"/></g>
     <g class="from-2 until-3"><path d="M644 248C610 288 614 340 646 346" class="excision lift-off"/></g>
-    <g class="from-4"><path d="M642 304l10 6" class="suture"/></g></g>
-      <circle cx="676" cy="300" r="120" class="inset__ring"/>
-    </g></g></svg>
-          <div class="schema__spot"></div><div class="schema__target"><svg viewBox="0 0 100 100" focusable="false"><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div>
+    <g class="from-4"><path d="M642 304l10 6" class="suture"/></g><circle cx="676" cy="300" r="120" class="inset__ring"/></svg></div>
+          <div class="schema__spot"><i style="--u:var(--s1u);--v:var(--s1v);--r:var(--s1r)"></i><i style="--u:var(--s2u);--v:var(--s2v);--r:var(--s2r)"></i><i style="--u:var(--s3u);--v:var(--s3v);--r:var(--s3r)"></i><i style="--u:var(--s4u);--v:var(--s4v);--r:var(--s4r)"></i></div><div class="schema__target"><div class="schema__target-size"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div></div>
           <div class="schema__labels"><span class="schema__label schema__label--start" style="--x:4.5%;--y:59.3%">Côté tempe</span><span class="schema__label schema__label--end" style="--x:67.5%;--y:76%">Côté nez</span><span class="schema__label schema__label--center" style="--x:42.5%;--y:21%">Sourcil</span><span class="schema__label schema__label--center until-1" style="--x:28.5%;--y:42.7%">Excès de peau</span><span class="schema__label schema__label--center schema__label--accent from-2 until-2" style="--x:42.5%;--y:48.7%">Tracé dans le pli</span><span class="schema__label schema__label--center from-4" style="--x:42.5%;--y:40.3%">Cicatrice cachée dans le pli</span><span class="schema__label schema__label--center" style="--x:83.4%;--y:82%">Paupière en coupe</span><span class="schema__label schema__label--start" style="--x:84.1%;--y:47.3%">Graisse</span><span class="schema__label schema__label--start" style="--x:87.3%;--y:68.3%">Tarse</span></div>
         </div>
       </div>
@@ -309,7 +305,7 @@
     <section class="section section--flush-top" data-stars>
       <div class="container more">
         <a class="info-card" href="../telechargements#paupieres" data-reveal>
-          <span class="drawing drawing--optique" aria-hidden="true"></span>
+          <span class="drawing drawing--optique" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span>
           <span class="info-card__text">
             <span class="info-card__kicker">Fiches d'information</span>
             <span class="info-card__title">Pour plus d'informations sur la chirurgie esthétique des paupières</span>
@@ -328,7 +324,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

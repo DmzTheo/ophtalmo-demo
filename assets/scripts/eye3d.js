@@ -6,7 +6,10 @@
 // 404 page (data-eye3d="look", on the paper): the eye searches the missing page for 4 s, then looks
 // at the pointer; only the globe turns, behind its lids.
 // Three.js r185 (assets/vendor/three), loaded once the page itself has loaded. Without WebGL 2
-// nothing changes on the page. Proportions in millimetres, from _build/eye.js (adult eye).
+// nothing changes on the page. Proportions in millimetres, from _build/eye.js (adult eye). Drawn as
+// finely as the graphics chip allows (fineness.js).
+import { fineness } from './fineness.js';
+
 const stage = document.querySelector('[data-eye3d]');
 
 const hasWebGL2 = () => {
@@ -421,10 +424,15 @@ function build(THREE) {
   const camera = new THREE.PerspectiveCamera(28, 1, 10, 200);
   camera.position.set(0, 0, 80);
 
+  // At most 2 pixels per point, phones starting at 1.5, never under 1.
+  const finest = Math.min(window.devicePixelRatio || 1, 2);
+  const isTouch = window.matchMedia('(hover: none)').matches;
+  const fine = fineness({ max: finest, min: Math.min(finest, 1), start: isTouch ? Math.min(finest, 1.5) : finest, onChange: () => resize() });
+
   const resize = () => {
     const width = Math.max(1, stage.clientWidth);
     const height = Math.max(1, stage.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(fine.ratio);
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     // The eye (about 30 mm with its lids, 27 mm seen from the front) fills three quarters of the
@@ -493,7 +501,8 @@ function build(THREE) {
   let isRunning = false;
   const damp = (current, target, rate, dt) => current + (target - current) * (1 - Math.exp(-rate * dt));
 
-  const frame = () => {
+  const frame = (tick) => {
+    fine.frame(tick);
     timer.update();
     // The 3 s of each part are counted in real time, whatever the number of frames per second; the
     // movements use a bounded step so that a slow frame never makes them jump.
@@ -545,6 +554,7 @@ function build(THREE) {
     if (isSettled && !isAdvancing) {
       renderer.setAnimationLoop(null);
       isRunning = false;
+      fine.rest();
     }
   };
 
@@ -620,7 +630,7 @@ function build(THREE) {
     });
   }
 
-  new IntersectionObserver((entries) => {
+  new ViewWatcher((entries) => {
     state.isVisible = entries[0].isIntersecting;
     requestFrame();
   }).observe(stage);

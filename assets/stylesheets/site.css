@@ -359,13 +359,43 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
 
 /* ---------- Background drawings (faint line art, one theme per page) ---------- */
 
+/* The drawing itself (build.js puts it in each .drawing, through <use>) is drawn in the colour of
+   the element, faintly. It is placed as a background image would be: --drawing-w its width (by
+   default as large as needed to cover the block, the drawing being 16:10), --drawing-x and
+   --drawing-y where it stands in the block (0 at the left or top, 1 at the right or bottom). */
+.drawing {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  pointer-events: none;
+  color: var(--drawing-color, var(--c-blue));
+  opacity: var(--drawing-opacity, 0.07);
+  container-type: size;
+}
+
+/* (The drawing covers its frame whatever the size of the page; cut at its own box, it stays small
+   enough for Firefox to slide it on the graphics chip when it sweeps in: with its lines overflowing,
+   it was too large and was moved on the main thread at each frame of the arrival of the page.) */
+.drawing > svg {
+  --drawing-width: var(--drawing-w, max(100cqw, 160cqh));
+  position: absolute;
+  top: calc((100cqh - var(--drawing-width) * 0.625) * var(--drawing-y, 0.5));
+  left: calc((100cqw - var(--drawing-width)) * var(--drawing-x, 0.8));
+  width: var(--drawing-width);
+  max-width: none;
+  height: calc(var(--drawing-width) * 0.625);
+  overflow: hidden;
+}
+
 /* Once the pointer has come over the head, the same drawing is drawn on a canvas (drawing.js),
-   whose lines part around the pointer: the painted one gives way to it. */
+   whose lines part around the pointer: the still one gives way to it. */
 .drawing.is-live {
-  background: none;
   opacity: 1;
-  -webkit-mask: none;
-  mask: none;
+}
+
+.drawing.is-live > svg {
+  visibility: hidden;
 }
 
 .drawing__live {
@@ -373,31 +403,6 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.drawing {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: var(--drawing-color, var(--c-blue));
-  opacity: var(--drawing-opacity, 0.07);
-  -webkit-mask: var(--drawing-src, url("../images/drawings/coupe.svg")) var(--drawing-pos, 80% 50%) / var(--drawing-size, cover) no-repeat;
-  mask: var(--drawing-src, url("../images/drawings/coupe.svg")) var(--drawing-pos, 80% 50%) / var(--drawing-size, cover) no-repeat;
-}
-
-html[data-drawing="iris"] .drawing--page,
-.drawing--iris {
-  --drawing-src: url("../images/drawings/iris.svg");
-}
-
-html[data-drawing="retine"] .drawing--page {
-  --drawing-src: url("../images/drawings/retine.svg");
-}
-
-html[data-drawing="optique"] .drawing--page,
-.drawing--optique {
-  --drawing-src: url("../images/drawings/optique.svg");
 }
 
 /* ---------- Common typography ---------- */
@@ -597,31 +602,34 @@ html[data-drawing="optique"] .drawing--page,
   letter-spacing: 0.08em;
   text-transform: uppercase;
   vertical-align: middle;
+  overflow: hidden;
+  overflow: clip;
 }
 
-/* The shine passes inside the badge (its gradient moves; nothing overflows to be cut). */
+/* The shine passes inside the badge, once it is on screen (its block revealed): a band three times
+   as wide, moved across it by the screen, cut by the badge (a background moved inside was painted
+   again at every frame, on screen or not). */
 .badge::after {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.85) 50%, transparent 60%) 200% 0 / 300% 100% no-repeat;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 300%;
+  background: linear-gradient(100deg, transparent 40%, rgba(255, 255, 255, 0.85) 50%, transparent 60%);
+  translate: -66.667% 0;
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .badge::after {
+  :is(html:not(.js), .is-visible) .badge::after {
     animation: badge-shine 1.4s var(--ease-in-out) 1.4s 2;
   }
 }
 
 @keyframes badge-shine {
-  from {
-    background-position: 100% 0;
-  }
-
   to {
-    background-position: -100% 0;
+    translate: 66.667% 0;
   }
 }
 
@@ -1686,6 +1694,8 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   --drawing-color: var(--c-sky);
   --drawing-opacity: 0.12;
   --w: calc(var(--s) * 2.015);
+  /* (A mask over the colour, unlike the other drawings: WebGL takes its place at once.) */
+  background: var(--drawing-color);
   -webkit-mask:
     url("../images/drawings/optique.svg") calc(var(--cx) - var(--w) * 0.775) calc(var(--cy) - var(--w) * 0.3125) / var(--w) auto no-repeat,
     radial-gradient(circle at var(--cx) var(--cy), transparent calc(var(--s) * 0.5), #000 calc(var(--s) * 0.62));
@@ -2140,7 +2150,9 @@ a.contact-band__item:hover .contact-band__value {
   transform-origin: left;
 }
 
-/* The light: a glowing point drawn in a band along the line, moved by its background position. */
+/* The light: a glowing point at the start of a band as long as the line; the band is moved along
+   the line by the screen (a moved background was painted again at every frame), the page cuts
+   what passes its edge. */
 .visit__steps::after {
   content: "";
   position: absolute;
@@ -2157,8 +2169,10 @@ a.contact-band__item:hover .contact-band__value {
 .visit__drawing {
   --drawing-color: var(--c-sky);
   --drawing-opacity: 0.08;
-  --drawing-pos: 108% 40%;
-  --drawing-size: auto 150%;
+  /* One and a half times the height of the block, past its right edge. */
+  --drawing-w: 240cqh;
+  --drawing-x: 1.08;
+  --drawing-y: 0.4;
 }
 
 .visit .container {
@@ -2243,7 +2257,7 @@ a.contact-band__item:hover .contact-band__value {
     animation: visit-signal 2.4s var(--ease-in-out) 1.8s both;
   }
 
-  .js .visit__steps.is-drawn .visit__icon {
+  .js .visit__steps.is-drawn .visit__icon::after {
     animation: visit-ping 0.9s var(--ease-out) both;
     animation-delay: calc(1.8s + var(--at, 0) * 1.1s);
   }
@@ -2259,7 +2273,7 @@ a.contact-band__item:hover .contact-band__value {
 
 @keyframes visit-signal {
   0% {
-    background-position: 0% 0;
+    translate: 0 0;
     opacity: 0;
   }
 
@@ -2269,15 +2283,27 @@ a.contact-band__item:hover .contact-band__value {
   }
 
   100% {
-    background-position: 100% 0;
+    translate: calc(100% - 14px) 0;
     opacity: 0;
   }
 }
 
+/* As the light passes, each icon lights up: a ring with its glow, over its border, appears and
+   fades (a border and a shadow that change were painted again at every frame). */
+.visit__icon::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--c-sky);
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(168, 200, 243, 0.18), 0 0 28px rgba(168, 200, 243, 0.35);
+  opacity: 0;
+  pointer-events: none;
+}
+
 @keyframes visit-ping {
   35% {
-    border-color: var(--c-sky);
-    box-shadow: 0 0 0 6px rgba(168, 200, 243, 0.18), 0 0 28px rgba(168, 200, 243, 0.35);
+    opacity: 1;
   }
 }
 
@@ -2348,7 +2374,7 @@ a.contact-band__item:hover .contact-band__value {
 
 @keyframes visit-signal-down {
   0% {
-    background-position: 0 0%;
+    translate: 0 0;
     opacity: 0;
   }
 
@@ -2358,7 +2384,7 @@ a.contact-band__item:hover .contact-band__value {
   }
 
   100% {
-    background-position: 0 100%;
+    translate: 0 calc(100% - 14px);
     opacity: 0;
   }
 }
@@ -2865,6 +2891,7 @@ a.contact-band__item:hover .contact-band__value {
   position: relative;
   container-type: inline-size;
   overflow: hidden;
+  overflow: clip;
   border-radius: var(--r-xl);
   background: radial-gradient(circle at 32% 22%, var(--c-light), var(--schema-paper) 55%, var(--c-paper-2));
   box-shadow: inset 0 0 0 1px var(--c-line);
@@ -2878,8 +2905,36 @@ a.contact-band__item:hover .contact-band__value {
 }
 
 .schema__canvas {
+  --stroke: tan(atan2(800px, 100cqw));
   position: relative;
   aspect-ratio: var(--schema-ratio, 4 / 3);
+}
+
+/* The lines of the drawings of the schemas and of the lamp keep the same thickness on screen whatever
+   the size of the drawing: their widths are given in pixels of the page times --stroke, the drawing
+   units in a pixel (worked out from the width of the drawing, as a ratio of two lengths). Firefox
+   does not move by itself what lies in a drawing whose lines are made not to scale
+   (vector-effect: non-scaling-stroke), so the drawings no longer use it. */
+@property --stroke {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+/* Parts of the drawing seen through a window (magnifiers, fundus views, the main view of an
+   operation: schemas.js, windowView), each in its own SVG, cut by the page: a circle, or a rectangle
+   with soft edges. (Cut inside the drawing, what moves in them was drawn again at each frame.) */
+/* (Cut with overflow: clip, not hidden: for Firefox, what an overflow: hidden box cuts away is out of
+   view, and what moves there is brought up to date on the main thread five times a second.) */
+.schema__window {
+  position: absolute;
+  overflow: hidden;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.schema__window--round {
+  border-radius: 50%;
 }
 
 /* Readouts float over the drawing; on a narrow drawing they line up under it instead. */
@@ -2919,15 +2974,14 @@ a.contact-band__item:hover .contact-band__value {
 .schema__svg :is(path, circle, ellipse, line, polyline, rect) {
   fill: none;
   stroke: var(--schema-line);
-  stroke-width: 1.3;
+  stroke-width: calc(1.3px * var(--stroke));
   stroke-linecap: round;
   stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
 }
 
 .schema__svg .thin {
   stroke: var(--schema-thin);
-  stroke-width: 0.9;
+  stroke-width: calc(0.9px * var(--stroke));
 }
 
 .schema__svg .fill {
@@ -3027,13 +3081,13 @@ a.contact-band__item:hover .contact-band__value {
 .schema__svg .iris-collarette {
   fill: none;
   stroke: rgba(205, 168, 112, 0.8);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 .schema__svg .iris-rim {
   fill: none;
   stroke: rgba(14, 22, 34, 0.55);
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 /* Fundus: the choroid seen through the retina, and the finest vessels. */
@@ -3052,13 +3106,13 @@ a.contact-band__item:hover .contact-band__value {
 }
 
 .schema__svg .twig {
-  stroke-width: 0.9;
+  stroke-width: calc(0.9px * var(--stroke));
   opacity: 0.85;
 }
 
 .schema__svg .accent {
   stroke: var(--schema-accent);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .accent-fill {
@@ -3082,26 +3136,40 @@ a.contact-band__item:hover .contact-band__value {
 
 .schema__svg .light {
   stroke: var(--schema-light);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .schema__svg .no-stroke {
   stroke: none;
 }
 
-/* Moving dashes: aqueous humour, blood, light, a drug spreading. */
-.schema__svg .flow {
-  stroke-dasharray: 2 9;
-  animation: schema-flow 0.7s linear infinite;
+/* Moving dashes: aqueous humour, blood, light, a drug spreading. Each dash goes along the line
+   (schemas.js, march: --route, --n dashes, --k the rank of each), in --beat to go from one to the
+   next; the screen moves them by itself, the drawing is not drawn again. */
+:is(.schema__svg, .lamp__svg) .march > * {
+  fill: none;
+  stroke: inherit;
+  stroke-width: inherit;
+  stroke-linecap: round;
+  stroke-dasharray: none;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  offset-path: var(--route);
+  offset-rotate: auto;
+  animation: march calc(var(--n) * var(--beat, 0.7s)) linear calc(var(--k) * -1 * var(--beat, 0.7s) + var(--phase, 0s)) infinite;
 }
 
-.schema__svg .flow--slow {
-  animation-duration: 1.3s;
+.schema__svg .march--slow {
+  --beat: 1.3s;
 }
 
-@keyframes schema-flow {
+@keyframes march {
+  from {
+    offset-distance: 0%;
+  }
+
   to {
-    stroke-dashoffset: -11;
+    offset-distance: 100%;
   }
 }
 
@@ -3304,8 +3372,11 @@ a.contact-band__item:hover .contact-band__value {
   transform-origin: left;
 }
 
+/* (It starts again rather than staying full: Firefox brings an animation that ends up to date at every
+   frame while it is off screen, one that repeats only five times a second. The step changes as it
+   fills.) */
 .schema.is-timing .schema__step.is-active::after {
-  animation: schema-progress var(--step-duration, 4s) linear forwards;
+  animation: schema-progress var(--step-duration, 4s) linear infinite;
 }
 
 @keyframes schema-progress {
@@ -3390,7 +3461,7 @@ html:not(.js) .schema__play {
 /* Schema drawing classes (fluids, fundus, visual field, insets). */
 .schema__svg .fluid-line {
   stroke: var(--schema-fluid);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .dot-blue {
@@ -3411,17 +3482,17 @@ html:not(.js) .schema__play {
 .schema__svg .cup {
   fill: #fbe6b8;
   stroke: rgba(120, 60, 20, 0.3);
-  stroke-width: 0.8;
+  stroke-width: calc(0.8px * var(--stroke));
 }
 
 .schema__svg .fundus-artery {
   stroke: #e2503b;
-  stroke-width: 2.2;
+  stroke-width: calc(2.2px * var(--stroke));
 }
 
 .schema__svg .fundus-vein {
   stroke: #8e1f1f;
-  stroke-width: 3.2;
+  stroke-width: calc(3.2px * var(--stroke));
 }
 
 .schema__svg .field-bg {
@@ -3441,18 +3512,18 @@ html:not(.js) .schema__play {
 .schema__svg .inset__halo {
   fill: var(--c-paper);
   stroke: var(--c-line);
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--stroke));
 }
 
 .schema__svg .inset__ring {
   stroke: var(--schema-ink);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 /* Pathology drawings: fundus lesions, retinal layers, vitreous, patient's view. */
 .schema__svg .leader {
   stroke: var(--schema-thin);
-  stroke-dasharray: 3 3;
+  stroke-dasharray: calc(3px * var(--stroke)) calc(3px * var(--stroke));
 }
 
 .schema__svg .fovea-reflex {
@@ -3461,7 +3532,7 @@ html:not(.js) .schema__play {
 }
 
 .schema__svg .thin-vessel {
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 .schema__svg .ma {
@@ -3478,7 +3549,7 @@ html:not(.js) .schema__play {
 .schema__svg .exudate {
   fill: #f4d03f;
   stroke: rgba(150, 110, 10, 0.4);
-  stroke-width: 0.5;
+  stroke-width: calc(0.5px * var(--stroke));
 }
 
 .schema__svg .cotton {
@@ -3494,7 +3565,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .neo {
   stroke: #d2352b;
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--stroke));
 }
 
 .schema__svg .fibrous {
@@ -3505,7 +3576,7 @@ html:not(.js) .schema__play {
 .schema__svg .neo-fill {
   fill: rgba(210, 53, 43, 0.16);
   stroke: #b8432f;
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--stroke));
 }
 
 .schema__svg .neo-quiet {
@@ -3521,7 +3592,7 @@ html:not(.js) .schema__play {
 .schema__svg .retina-band {
   fill: #f1d9cf;
   stroke: rgba(13, 26, 43, 0.4);
-  stroke-width: 0.8;
+  stroke-width: calc(0.8px * var(--stroke));
 }
 
 .schema__svg .retina-inner {
@@ -3545,12 +3616,12 @@ html:not(.js) .schema__play {
 
 .schema__svg .cone {
   stroke: #9a6a3a;
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .rod {
   stroke: #b78c6a;
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 .schema__svg .rpe {
@@ -3560,7 +3631,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .bruch {
   stroke: rgba(13, 26, 43, 0.45);
-  stroke-width: 0.8;
+  stroke-width: calc(0.8px * var(--stroke));
 }
 
 .schema__svg .capillary {
@@ -3572,7 +3643,7 @@ html:not(.js) .schema__play {
 .schema__svg .choroid-vessel {
   fill: rgba(170, 52, 40, 0.55);
   stroke: rgba(120, 30, 25, 0.5);
-  stroke-width: 0.8;
+  stroke-width: calc(0.8px * var(--stroke));
 }
 
 .schema__svg .sclera-band {
@@ -3583,12 +3654,12 @@ html:not(.js) .schema__play {
 .schema__svg .druse {
   fill: #ead27a;
   stroke: rgba(150, 110, 10, 0.5);
-  stroke-width: 0.8;
+  stroke-width: calc(0.8px * var(--stroke));
 }
 
 .schema__svg .grid-line {
   stroke: var(--schema-ink);
-  stroke-width: 0.9;
+  stroke-width: calc(0.9px * var(--stroke));
 }
 
 .schema__svg .scotoma {
@@ -3598,12 +3669,12 @@ html:not(.js) .schema__play {
 
 .schema__svg .vitreous-fibre {
   stroke: rgba(93, 155, 224, 0.4);
-  stroke-width: 0.9;
+  stroke-width: calc(0.9px * var(--stroke));
 }
 
 .schema__svg .hyaloid {
   stroke: rgba(60, 110, 170, 0.75);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 .schema__svg .floater {
@@ -3614,23 +3685,23 @@ html:not(.js) .schema__play {
 .schema__svg .floater-ring {
   fill: none;
   stroke: rgba(30, 40, 55, 0.6);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .schema__svg .tear-gap {
   stroke: #fbfaf7;
-  stroke-width: 4;
+  stroke-width: calc(4px * var(--stroke));
 }
 
 .schema__svg .flap {
   stroke: #b8432f;
-  stroke-width: 2.6;
+  stroke-width: calc(2.6px * var(--stroke));
 }
 
 .schema__svg .retina-detached {
   fill: rgba(184, 67, 47, 0.2);
   stroke: #b8432f;
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 .schema__svg .ground {
@@ -3650,7 +3721,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .trunk {
   stroke: #7b6a52;
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 .schema__svg .tree {
@@ -3675,13 +3746,13 @@ html:not(.js) .schema__play {
 .schema__svg .track {
   fill: none;
   stroke: #c9b896;
-  stroke-width: 7;
+  stroke-width: calc(7px * var(--stroke));
 }
 
 .schema__svg .roof {
   fill: none;
   stroke: #b7624a;
-  stroke-width: 4;
+  stroke-width: calc(4px * var(--stroke));
   stroke-linejoin: round;
 }
 
@@ -3697,7 +3768,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .flash-line {
   stroke: #fff6c9;
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 .schema__svg .flash {
@@ -3743,13 +3814,13 @@ html:not(.js) .schema__play {
 
 .schema__svg .capsule {
   stroke: var(--schema-line);
-  stroke-width: 1.1;
+  stroke-width: calc(1.1px * var(--stroke));
 }
 
 .schema__svg .rhexis {
   stroke: var(--schema-accent);
-  stroke-width: 2.2;
-  stroke-dasharray: 5 4;
+  stroke-width: calc(2.2px * var(--stroke));
+  stroke-dasharray: calc(5px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 .schema__svg .gel {
@@ -3759,28 +3830,28 @@ html:not(.js) .schema__play {
 
 .schema__svg .instrument {
   stroke: #8a96a8;
-  stroke-width: 3.4;
+  stroke-width: calc(3.4px * var(--stroke));
 }
 
 .schema__svg .instrument-thick {
   stroke: #8a96a8;
-  stroke-width: 7;
+  stroke-width: calc(7px * var(--stroke));
 }
 
 .schema__svg .iol-optic {
   fill: rgba(127, 178, 240, 0.25);
   stroke: var(--schema-accent);
-  stroke-width: 1.8;
+  stroke-width: calc(1.8px * var(--stroke));
 }
 
 .schema__svg .iol-haptic {
   stroke: var(--schema-accent);
-  stroke-width: 2.4;
+  stroke-width: calc(2.4px * var(--stroke));
 }
 
 .schema__svg .incision {
   stroke: var(--schema-accent);
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 .schema__svg .sclera-face {
@@ -3794,7 +3865,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .limbus-face {
   stroke: rgba(13, 26, 43, 0.55);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .schema__svg .catchlight {
@@ -3846,7 +3917,7 @@ html:not(.js) .schema__play {
 .schema__svg .epithelium {
   fill: #d7e6f4;
   stroke: rgba(13, 26, 43, 0.35);
-  stroke-width: 0.6;
+  stroke-width: calc(0.6px * var(--stroke));
 }
 
 .schema__svg .bowman {
@@ -3857,7 +3928,7 @@ html:not(.js) .schema__play {
 .schema__svg .stroma {
   fill: #eef3f8;
   stroke: rgba(13, 26, 43, 0.3);
-  stroke-width: 0.6;
+  stroke-width: calc(0.6px * var(--stroke));
 }
 
 .schema__svg .descemet {
@@ -3868,13 +3939,13 @@ html:not(.js) .schema__play {
 .schema__svg .endothelium {
   fill: #c9d9ea;
   stroke: rgba(13, 26, 43, 0.35);
-  stroke-width: 0.6;
+  stroke-width: calc(0.6px * var(--stroke));
 }
 
 .schema__svg .flap {
   fill: rgba(127, 178, 240, 0.32);
   stroke: var(--schema-accent);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 .schema__svg .flap-lift {
@@ -3887,7 +3958,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .cut-line {
   stroke: var(--schema-accent);
-  stroke-dasharray: 6 4;
+  stroke-dasharray: calc(6px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 .schema__svg .ablation {
@@ -3960,18 +4031,18 @@ html:not(.js) .schema__play {
 
 .schema__svg .bandage-lens {
   stroke: var(--schema-accent);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .flap-edge {
   stroke: var(--schema-accent);
-  stroke-width: 1.8;
-  stroke-dasharray: 5 4;
+  stroke-width: calc(1.8px * var(--stroke));
+  stroke-dasharray: calc(5px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 .schema__svg .hinge {
   stroke: var(--schema-accent);
-  stroke-width: 3.4;
+  stroke-width: calc(3.4px * var(--stroke));
 }
 
 .schema__svg .ablation-zone {
@@ -3982,7 +4053,7 @@ html:not(.js) .schema__play {
 .schema__svg .epi-defect {
   fill: rgba(255, 255, 255, 0.35);
   stroke: var(--schema-accent);
-  stroke-dasharray: 4 3;
+  stroke-dasharray: calc(4px * var(--stroke)) calc(3px * var(--stroke));
 }
 
 /* Injection: antiseptic, speculum, drops, the drug spreading. */
@@ -3992,12 +4063,12 @@ html:not(.js) .schema__play {
 
 .schema__svg .avoid-line {
   stroke: rgba(184, 67, 47, 0.55);
-  stroke-dasharray: 3 4;
+  stroke-dasharray: calc(3px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 .schema__svg .speculum {
   stroke: #8a96a8;
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 .schema__svg .drop {
@@ -4026,31 +4097,31 @@ html:not(.js) .schema__play {
 .schema__svg .drug-cloud {
   fill: rgba(93, 155, 224, 0.18);
   stroke: var(--schema-fluid);
-  stroke-dasharray: 4 4;
+  stroke-dasharray: calc(4px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 /* Eyelid. */
 .schema__svg .brow {
   stroke: rgba(80, 64, 50, 0.35);
-  stroke-width: 18;
+  stroke-width: calc(18px * var(--stroke));
   stroke-linecap: round;
 }
 
 .schema__svg .hair {
   stroke: rgba(70, 56, 44, 0.75);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
   stroke-linecap: round;
 }
 
 .schema__svg .lash {
   stroke: #2a2420;
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
   stroke-linecap: round;
 }
 
 .schema__svg .crease {
   stroke: rgba(120, 86, 70, 0.7);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 /* The excess skin: a neutral tint, like the other structures of the schemas. */
@@ -4072,8 +4143,8 @@ html:not(.js) .schema__play {
 .schema__svg .excision {
   fill: rgba(127, 178, 240, 0.18);
   stroke: var(--schema-accent);
-  stroke-width: 2;
-  stroke-dasharray: 6 4;
+  stroke-width: calc(2px * var(--stroke));
+  stroke-dasharray: calc(6px * var(--stroke)) calc(4px * var(--stroke));
 }
 
 .schema.is-step-3 .excision {
@@ -4082,7 +4153,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .suture {
   stroke: #3a5f9a;
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .schema__svg .caruncle {
@@ -4092,12 +4163,12 @@ html:not(.js) .schema__play {
 
 .schema__svg .skin-line {
   stroke: rgba(120, 86, 70, 0.8);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .orbicularis-line {
   stroke: rgba(184, 67, 47, 0.6);
-  stroke-width: 6;
+  stroke-width: calc(6px * var(--stroke));
 }
 
 .schema__svg .septum-line {
@@ -4111,7 +4182,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .levator-line {
   stroke: rgba(150, 64, 52, 0.7);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .schema__svg .tarsus {
@@ -4121,23 +4192,37 @@ html:not(.js) .schema__play {
 
 .schema__svg .conj-line {
   stroke: rgba(210, 120, 120, 0.8);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 /* ---------- Surgery schemas: each step plays its own gesture ---------- */
-/* Lines drawn by a gesture (incisions, capsulorhexis, measure, marker) have pathLength="1". */
-.schema__svg :is(.cut, .rhexis-face, .measure-draw, .pen) {
-  stroke-dasharray: 1;
-}
-
+/* Lines drawn by a gesture (incisions, capsulorhexis, measure, marker, new vessels…) come in short
+   parts (schemas.js, drawn), each shown when the pen reaches it: --t, when (share of the time of the
+   gesture), --u, the time to cross it. A gesture of duration D after a delay A shows its parts with
+   animation: schema-draw calc(D * var(--u)) linear calc(A + D * var(--t)) both. */
 @keyframes schema-draw {
   from {
-    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+}
+
+@keyframes schema-show {
+  from {
+    opacity: 0;
   }
 
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
   }
+}
+
+/* A see-through line drawn in parts: opaque parts in a see-through group. */
+.schema__svg .drawn--hyaloid {
+  opacity: 0.75;
+}
+
+.schema__svg .drawn--hyaloid > .hyaloid {
+  stroke: rgb(60, 110, 170);
 }
 
 @keyframes schema-pop {
@@ -4247,16 +4332,16 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .cut {
-  animation: schema-draw 0.7s var(--ease-out) 0.85s both;
+  animation: schema-draw calc(0.7s * var(--u, 1)) linear calc(0.85s + 0.7s * var(--t, 0)) both;
 }
 
 .schema__svg .rhexis-face {
   stroke: var(--schema-accent);
-  stroke-width: 2.4;
+  stroke-width: calc(2.4px * var(--stroke));
 }
 
 .schema.is-step-3:not(.is-step-4) .rhexis-face {
-  animation: schema-draw 2s ease-in-out 0.3s both;
+  animation: schema-draw calc(2s * var(--u, 1)) linear calc(0.3s + 2s * var(--t, 0)) both;
 }
 
 .schema__svg .forceps {
@@ -4296,7 +4381,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .wave {
   stroke: var(--schema-light);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
@@ -4431,7 +4516,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .beam {
   stroke: var(--schema-light);
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
   opacity: 0.85;
 }
 
@@ -4515,11 +4600,11 @@ html:not(.js) .schema__play {
 
 .schema__svg .pen {
   stroke: var(--schema-accent);
-  stroke-width: 2.6;
+  stroke-width: calc(2.6px * var(--stroke));
 }
 
 .schema.is-step-2:not(.is-step-3) .pen {
-  animation: schema-draw 1.8s ease-in-out 0.2s both;
+  animation: schema-draw calc(1.8s * var(--u, 1)) linear calc(0.2s + 1.8s * var(--t, 0)) both;
 }
 
 .schema.is-step-2:not(.is-step-3) .lift-off .excision {
@@ -4593,12 +4678,12 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .measure-draw {
-  animation: schema-draw 1s var(--ease-out) 0.8s both;
+  animation: schema-draw calc(1s * var(--u, 1)) linear calc(0.8s + 1s * var(--t, 0)) both;
 }
 
 .schema__svg .pulse-ring {
   stroke: var(--schema-accent);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
   transform-box: fill-box;
   transform-origin: center;
   animation: schema-wave 1.6s ease-out infinite;
@@ -4699,92 +4784,111 @@ html:not(.js) .schema__play {
 }
 
 /* ---------- Surgery schemas: the place of each step, lit and framed ---------- */
-/* The focus of the step playing (schemas.js writes one per step, as fractions of the drawing); it
-   glides to the next one, and the light and the target follow it. Only the light and the target
-   carry it, and it is not passed on to what they hold: while it glides, the browser works out again
-   these two elements alone, not the hundreds of lines of the drawing. */
-@property --sx {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0.5;
-}
-
-@property --sy {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0.5;
-}
-
-@property --sr {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0.3;
-}
-
-.schema--focus :is(.schema__spot, .schema__target) {
-  transition: --sx 1.1s var(--ease-in-out), --sy 1.1s var(--ease-in-out), --sr 1.1s var(--ease-in-out);
-}
-
+/* The focus of the step playing (schemas.js writes one per step): its centre from the centre of the
+   drawing (--sNu, --sNv) and its radius (--sNr), in widths of the drawing. The light and the target
+   glide from one step to the next by moving and growing whole (translate and scale, in the
+   transitions below), which the screen does by itself: nothing is drawn again while they glide, on a
+   phone as on a computer. */
 .schema--focus[data-step="1"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s1x);
-  --sy: var(--s1y);
+  --su: var(--s1u);
+  --sv: var(--s1v);
   --sr: var(--s1r);
 }
 
 .schema--focus[data-step="2"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s2x);
-  --sy: var(--s2y);
+  --su: var(--s2u);
+  --sv: var(--s2v);
   --sr: var(--s2r);
 }
 
 .schema--focus[data-step="3"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s3x);
-  --sy: var(--s3y);
+  --su: var(--s3u);
+  --sv: var(--s3v);
   --sr: var(--s3r);
 }
 
 .schema--focus[data-step="4"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s4x);
-  --sy: var(--s4y);
+  --su: var(--s4u);
+  --sv: var(--s4v);
   --sr: var(--s4r);
 }
 
 .schema--focus[data-step="5"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s5x);
-  --sy: var(--s5y);
+  --su: var(--s5u);
+  --sv: var(--s5v);
   --sr: var(--s5r);
 }
 
 .schema--focus[data-step="6"] :is(.schema__spot, .schema__target) {
-  --sx: var(--s6x);
-  --sy: var(--s6y);
+  --su: var(--s6u);
+  --sv: var(--s6v);
   --sr: var(--s6r);
 }
 
-/* Around the place of the step, the drawing goes a little into the shade (soft edges, no frame). */
+/* Around the place of the step, the drawing goes a little into the shade (soft edges, no frame): clear
+   up to 0.75 of the radius of the step, full shade from 1.65. One layer of shade per step (schemas.js:
+   its place --u, --v and radius --r, in widths); at each new step, its layer fades in while the one
+   before fades out at a pace that keeps the shade even where both cover the drawing (two half-shown
+   shades let more light through than one), and the light seems to move with the target. Only their
+   opacities change, which the screen does by itself (one gradient moved and grown over the drawing
+   was too large for Firefox to move it on the graphics chip: the page was drawn again at each
+   frame while it glided). */
 .schema__spot {
+  --shade: 6, 13, 25;
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  overflow: clip;
   pointer-events: none;
-  background: radial-gradient(circle at calc(var(--sx) * 100%) calc(var(--sy) * 100%), rgba(6, 13, 25, 0) calc(var(--sr) * 75cqi), rgba(6, 13, 25, 0.5) calc(var(--sr) * 165cqi));
   -webkit-mask: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(transparent, #000 7%, #000 93%, transparent);
   -webkit-mask-composite: source-in;
   mask: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(transparent, #000 7%, #000 93%, transparent);
   mask-composite: intersect;
 }
 
-/* The target: a ring in four arcs with its ticks, in the colour of the operation, turning slowly.
-   At each new step it closes in on its place, like a microscope finding its focus. */
-.schema__target {
+.schema__spot > i {
   position: absolute;
-  top: calc(var(--sy) * 100%);
-  left: calc(var(--sx) * 100%);
-  width: calc(var(--sr) * 165cqi);
+  inset: 0;
+  background: radial-gradient(circle at calc(50% + var(--u) * 100cqw) calc(50% + var(--v) * 100cqw), rgba(var(--shade), 0) calc(var(--r) * 75cqw), rgba(var(--shade), 0.5) calc(var(--r) * 165cqw));
+  opacity: 0;
+  transition: opacity 1.1s var(--ease-in-out);
+  transition-timing-function: linear(0, 0.001 5%, 0.004 10%, 0.011 15%, 0.021 20%, 0.037 25%, 0.06 30%, 0.093 35%, 0.144 40%, 0.222 45%, 0.333 50%, 0.467 55%, 0.597 60%, 0.708 65%, 0.798 70%, 0.868 75%, 0.92 80%, 0.958 85%, 0.982 90%, 0.996 95%, 1);
+}
+
+.schema--focus:is([data-step="1"]) .schema__spot > :nth-child(1),
+.schema--focus:is([data-step="2"]) .schema__spot > :nth-child(2),
+.schema--focus:is([data-step="3"]) .schema__spot > :nth-child(3),
+.schema--focus:is([data-step="4"]) .schema__spot > :nth-child(4),
+.schema--focus:is([data-step="5"]) .schema__spot > :nth-child(5),
+.schema--focus:is([data-step="6"]) .schema__spot > :nth-child(6) {
+  opacity: 1;
+  transition-timing-function: var(--ease-in-out);
+}
+
+/* The target: a ring in four arcs with its ticks, in the colour of the operation, turning slowly.
+   At each new step it closes in on its place, like a microscope finding its focus. It is made for a
+   radius of a fifth of the width (33 widths in a hundred across) and scaled to the radius of the
+   step; its lines keep their thickness whatever the scale (--stroke: the units of its drawing in a
+   pixel of the page, at the radius it is made for). */
+.schema__target {
+  --stroke: tan(atan2(100px, 33cqw));
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 33cqw;
   aspect-ratio: 1;
-  translate: -50% -50%;
+  margin: -16.5cqw 0 0 -16.5cqw;
   color: var(--chapter-accent, var(--op-accent, var(--c-sky)));
-  filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 55%, transparent));
   pointer-events: none;
+  translate: calc(var(--su, 0) * 100cqw) calc(var(--sv, 0) * 100cqw);
+  transition: translate 1.1s var(--ease-in-out);
+}
+
+.schema__target-size {
+  width: 100%;
+  height: 100%;
+  scale: calc(var(--sr, 0.2) / 0.2);
+  transition: scale 1.1s var(--ease-in-out);
 }
 
 .schema__target svg {
@@ -4798,23 +4902,28 @@ html:not(.js) .schema__play {
 }
 
 .schema__target circle {
-  stroke-width: 2.2;
+  stroke-width: calc(2.2px * var(--stroke) * 0.2 / var(--sr, 0.2));
   stroke-dasharray: 19 6;
-  vector-effect: non-scaling-stroke;
 }
 
 .schema__target path {
-  stroke-width: 2.4;
+  stroke-width: calc(2.4px * var(--stroke) * 0.2 / var(--sr, 0.2));
   stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
 }
 
-.schema--focus:is([data-step="1"], [data-step="3"], [data-step="5"]) .schema__target {
-  animation: target-lock-a 1s var(--ease-out) both;
+/* Its glow: the same lines, wide and faint, under them (a blurred shadow of the turning target was
+   blurred again at each frame by the graphics chip). On the paper, a white halo keeps it readable. */
+.schema__target .schema__target-halo {
+  stroke-opacity: 0.3;
+  stroke-width: calc(8px * var(--stroke) * 0.2 / var(--sr, 0.2));
 }
 
-.schema--focus:is([data-step="2"], [data-step="4"], [data-step="6"]) .schema__target {
-  animation: target-lock-b 1s var(--ease-out) both;
+.schema--focus:is([data-step="1"], [data-step="3"], [data-step="5"]) .schema__target svg {
+  animation: target-spin 18s linear infinite, target-lock-a 1s var(--ease-out) both;
+}
+
+.schema--focus:is([data-step="2"], [data-step="4"], [data-step="6"]) .schema__target svg {
+  animation: target-spin 18s linear infinite, target-lock-b 1s var(--ease-out) both;
 }
 
 /* (transform rather than rotate: Chrome hands only the first to the graphics chip on an svg.) */
@@ -4851,17 +4960,36 @@ html:not(.js) .schema__play {
 /* On the paper (pathologies), the drawing around the place of the step goes into a light fog, and
    the target takes the colour of the pathology. */
 .schema--focus:not(.schema--dark) .schema__spot {
-  background: radial-gradient(circle at calc(var(--sx) * 100%) calc(var(--sy) * 100%), rgba(246, 241, 231, 0) calc(var(--sr) * 75cqi), rgba(246, 241, 231, 0.5) calc(var(--sr) * 165cqi));
+  --shade: 246, 241, 231;
 }
 
 .schema--focus:not(.schema--dark) .schema__target {
   color: var(--schema-accent);
-  filter: drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 2.5px rgba(255, 255, 255, 0.9));
+}
+
+.schema--focus:not(.schema--dark) .schema__target .schema__target-halo {
+  stroke: #fff;
+  stroke-opacity: 0.9;
+  stroke-width: calc(5px * var(--stroke) * 0.2 / var(--sr, 0.2));
+}
+
+/* What a step hides rests: the animations of a part that is not shown no longer run. */
+.schema:not(.is-step-2) .from-2 *,
+.schema:not(.is-step-3) .from-3 *,
+.schema:not(.is-step-4) .from-4 *,
+.schema:not(.is-step-5) .from-5 *,
+.schema:not(.is-step-6) .from-6 *,
+.schema.is-step-2 .until-1 *,
+.schema.is-step-3 .until-2 *,
+.schema.is-step-4 .until-3 *,
+.schema.is-step-5 .until-4 *,
+.schema.is-step-6 .until-5 * {
+  animation-play-state: paused !important;
 }
 
 /* What keeps moving within a step stops with the pause of its schema, chapter or film; the gestures
    of the step (a few seconds) still play when a step is chosen. */
-:is(.chapter, .film, .schema[data-autoplay]):not(.is-playing) :is(.schema__target svg, .schema__svg :is(.flow, .haze, .glare, .fog, .vibrate, .wave, .focus-pulse, .scan-beam, .scan-orbit, .tracker, .pulse-dot, .plume, .blur-spot, .epi-defect, .sag, .weight, .pulse-ring, .drop, .drug-grain, .aqueous, .jam, .pressure, .artery-pulse, .cone, .rod, .grid-wavy, .sway, .drift, .tug, .flash)) {
+:is(.chapter, .film, .schema[data-autoplay]):not(.is-playing) :is(.schema__target svg, .schema__svg .march > *, .schema__svg :is(.haze, .glare, .fog, .vibrate, .wave, .focus-pulse, .scan-beam, .scan-orbit, .tracker, .pulse-dot, .plume, .blur-spot, .epi-defect, .sag, .weight, .pulse-ring, .drop, .drug-grain, .aqueous, .jam, .pressure, .artery-pulse, .sense, .grid-wavy, .sway, .drift, .tug, .flash)) {
   animation-play-state: paused !important;
 }
 
@@ -4902,7 +5030,7 @@ html:not(.js) .schema__play {
 .schema__svg .burst {
   fill: none;
   stroke: var(--schema-light);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
@@ -5003,7 +5131,7 @@ html:not(.js) .schema__play {
 }
 
 .schema.is-step-2:not(.is-step-3) .cut--side {
-  animation-delay: 1.85s;
+  animation-delay: calc(1.85s + 0.7s * var(--t, 0));
 }
 
 .schema__svg .rhexis {
@@ -5024,13 +5152,12 @@ html:not(.js) .schema__play {
 
 .schema__svg .crack {
   stroke: var(--schema-light);
-  stroke-width: 2;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  stroke-width: calc(2px * var(--stroke));
+  opacity: 0;
 }
 
 .schema.is-step-4:not(.is-step-5) .crack {
-  animation: schema-draw 0.5s var(--ease-out) 0.1s both, schema-fade-out 0.4s 1.9s forwards;
+  animation: schema-show calc(0.5s * var(--u, 1)) linear calc(0.1s + 0.5s * var(--t, 0)) both, schema-fade-out 0.4s 1.9s forwards;
 }
 
 .schema__svg .iol-spring {
@@ -5048,22 +5175,14 @@ html:not(.js) .schema__play {
   }
 }
 
-.schema__svg .seal {
-  stroke-dasharray: 1;
-}
-
+/* The incisions close: their line goes away from one end to the other. */
 .schema.is-step-6 .seal {
-  animation: schema-seal 1.3s var(--ease-in-out) 0.6s both;
+  animation: schema-seal calc(1.3s * var(--u, 1)) linear calc(0.6s + 1.3s * var(--t, 0)) both;
 }
 
 @keyframes schema-seal {
-  from {
-    stroke-dashoffset: 0;
-  }
-
   to {
-    opacity: 0.2;
-    stroke-dashoffset: -1;
+    opacity: 0;
   }
 }
 
@@ -5135,8 +5254,8 @@ html:not(.js) .schema__play {
 
 .schema__svg .tracker-line {
   stroke: var(--schema-accent);
-  stroke-width: 1;
-  stroke-dasharray: 4 3;
+  stroke-width: calc(1px * var(--stroke));
+  stroke-dasharray: calc(4px * var(--stroke)) calc(3px * var(--stroke));
 }
 
 .schema.is-step-3:not(.is-step-4) .tracker {
@@ -5270,7 +5389,7 @@ html:not(.js) .schema__play {
 
 .schema__svg .thread {
   stroke: #3a5f9a;
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 .schema.is-step-4 .needle-tool {
@@ -5297,10 +5416,6 @@ html:not(.js) .schema__play {
   transform-origin: 50% 0;
 }
 
-.schema__svg :is(.draw-2, .draw-3, .draw-4, .draw-5) {
-  stroke-dasharray: 1;
-}
-
 :is(.schema.is-step-2:not(.is-step-3) .pop-2, .schema.is-step-3:not(.is-step-4) .pop-3, .schema.is-step-4:not(.is-step-5) .pop-4, .schema.is-step-5:not(.is-step-6) .pop-5) {
   animation: schema-pop-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   animation-delay: calc(0.25s + var(--i, 0) * 0.08s);
@@ -5321,8 +5436,8 @@ html:not(.js) .schema__play {
 }
 
 :is(.schema.is-step-2:not(.is-step-3) .draw-2, .schema.is-step-3:not(.is-step-4) .draw-3, .schema.is-step-4:not(.is-step-5) .draw-4, .schema.is-step-5:not(.is-step-6) .draw-5) {
-  animation: schema-draw 1.2s var(--ease-out) both;
-  animation-delay: calc(0.2s + var(--i, 0) * 0.1s);
+  animation: schema-draw calc(1.2s * var(--u, 1)) linear both;
+  animation-delay: calc(0.2s + var(--i, 0) * 0.1s + 1.2s * var(--t, 0));
 }
 
 :is(.schema.is-step-4:not(.is-step-5) .slow-4, .schema.is-step-5:not(.is-step-6) .slow-5) {
@@ -5355,7 +5470,7 @@ html:not(.js) .schema__play {
 .schema__svg .ring-out {
   fill: none;
   stroke: var(--schema-red);
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
   opacity: 0;
 }
 
@@ -5484,14 +5599,17 @@ html:not(.js) .schema__play {
 .schema__svg .probe--missed {
   fill: var(--schema-paper);
   stroke: var(--schema-line);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 /* Diabetes: the blood beats along the arteries (less once the small vessels close). */
 .schema__svg .artery-pulse {
   stroke: rgba(255, 236, 214, 0.95);
-  stroke-width: 2.4;
-  stroke-dasharray: 0.06 0.94;
+  stroke-width: calc(2.4px * var(--stroke));
+  transform-box: view-box;
+  transform-origin: 0 0;
+  offset-path: var(--route);
+  offset-rotate: auto;
   transition: opacity 1s;
   animation: schema-pulse-run 1.8s linear infinite;
   animation-delay: calc(var(--i, 0) * -0.3s);
@@ -5503,24 +5621,37 @@ html:not(.js) .schema__play {
 
 @keyframes schema-pulse-run {
   from {
-    stroke-dashoffset: 1;
+    offset-distance: 0%;
   }
 
   to {
-    stroke-dashoffset: 0;
+    offset-distance: 100%;
   }
 }
 
 /* AMD: the cells of the macula catch the light, from the centre outward; the grid waves; the drug
    comes down to the macula. */
-.schema.is-step-1:not(.is-step-2) :is(.cone, .rod) {
+.schema__svg .sense {
+  stroke: var(--schema-light);
+  opacity: 0;
+}
+
+.schema__svg .sense--cone {
+  stroke-width: calc(2px * var(--stroke));
+}
+
+.schema__svg .sense--rod {
+  stroke-width: calc(1.2px * var(--stroke));
+}
+
+.schema.is-step-1:not(.is-step-2) .sense {
   animation: schema-sense 2.4s ease-in-out infinite;
   animation-delay: calc(var(--x, 0) * 1s);
 }
 
 @keyframes schema-sense {
   20% {
-    stroke: var(--schema-light);
+    opacity: 1;
   }
 }
 
@@ -5664,7 +5795,7 @@ html:not(.js) .schema__play {
 
 .schema.is-timing .schema__dot.is-active span::after {
   transform: scaleX(0);
-  animation: schema-progress var(--step-duration, 4s) linear forwards;
+  animation: schema-progress var(--step-duration, 4s) linear infinite;
 }
 
 .schema__dot:hover span {
@@ -5702,6 +5833,7 @@ html:not(.js) .schema__play {
 .lamp__figure {
   --schema-fluid: #5d9be0;
   --schema-light: #efb24a;
+  container-type: inline-size;
   position: relative;
   width: 100%;
   max-width: 36rem;
@@ -5716,14 +5848,85 @@ html:not(.js) .schema__play {
   stroke: none;
 }
 
-.lamp__svg .lamp-dark {
-  fill: rgba(6, 12, 22, 0.7);
+/* The round field of the view: a circle cut by the page (overflow), which keeps what moves in the
+   drawing to the screen alone (a clip in the drawing made the browser draw it all again at each
+   frame). The drawing keeps the size of the figure (600 units), the field is the circle of 584. */
+.lamp__figure > * {
+  --stroke: tan(atan2(600px, 100cqw));
+}
+
+.lamp__field {
+  position: absolute;
+  inset: calc(8 / 600 * 100%);
+  overflow: hidden;
+  overflow: clip;
+  border-radius: 50%;
+}
+
+.lamp__field > .lamp__svg {
+  inset: auto;
+  top: calc(-8 / 584 * 100%);
+  left: calc(-8 / 584 * 100%);
+  width: calc(600 / 584 * 100%);
+  max-width: none;
+  height: calc(600 / 584 * 100%);
+}
+
+/* The lids around the opening of the eye, of the colour of the room (lamp.js). */
+.lamp__svg .lamp-lid {
+  fill: #0b1626;
+  fill-rule: evenodd;
   stroke: none;
+}
+
+/* The darkness of the room with the beam cut out of it, and the glow of the beam: two gradients the
+   size of the field, centred on the light (--bx, --by in drawing units, from site.js) and moved
+   whole, which the screen does without drawing anything again. The darkness is large enough to
+   cover the field wherever the light goes (reach 250 + field 292 on each side: 1084 units); its
+   clear centre fades from 57.6 to 128 units, the glow spreads over 128. */
+.lamp__light {
+  position: absolute;
+  inset: calc(8 / 600 * 100%);
+  border-radius: 50%;
+  overflow: hidden;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.lamp__dark,
+.lamp__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  aspect-ratio: 1;
+}
+
+.lamp__dark {
+  width: calc(1084 / 584 * 100%);
+  translate: calc((var(--bx, 300) - 300) / 1084 * 100% - 50%) calc((var(--by, 300) - 300) / 1084 * 100% - 50%);
+  background: radial-gradient(closest-side, rgba(6, 12, 22, 0) calc(57.6 / 542 * 100%), rgba(6, 12, 22, 0.7) calc(128 / 542 * 100%));
+}
+
+/* The light glides to the place site.js gives it, and the gaze of the eye follows (lamp__gaze, its
+   catchlight): transitions the screen makes by itself. */
+:is(.lamp__dark, .lamp__glow),
+.lamp__svg :is(.lamp__gaze, .catchlight) {
+  transition: translate 0.5s cubic-bezier(0.22, 0.8, 0.32, 1);
+}
+
+.lamp__figure.is-jumping :is(.lamp__dark, .lamp__glow, .lamp__gaze, .catchlight) {
+  transition: none;
+}
+
+.lamp__glow {
+  width: calc(256 / 584 * 100%);
+  translate: calc((var(--bx, 300) - 300) / 256 * 100% - 50%) calc((var(--by, 300) - 300) / 256 * 100% - 50%);
+  background: radial-gradient(closest-side, rgba(255, 246, 228, 0.2), rgba(255, 246, 228, 0.07) 55%, rgba(255, 246, 228, 0));
 }
 
 .lamp__svg .lamp-ticks {
   stroke: var(--c-ink);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
   opacity: 0.55;
 }
 
@@ -5745,17 +5948,17 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-vessel {
   stroke: rgba(196, 72, 52, 0.55);
-  stroke-width: 1.1;
+  stroke-width: calc(1.1px * var(--stroke));
 }
 
 .lamp__svg .lamp-margin {
   stroke: rgba(232, 240, 250, 0.85);
-  stroke-width: 1.8;
+  stroke-width: calc(1.8px * var(--stroke));
 }
 
 .lamp__svg .lamp-crease {
   stroke: rgba(232, 240, 250, 0.45);
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .lamp__svg .lamp-crease--soft {
@@ -5764,11 +5967,11 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lash {
   stroke: rgba(232, 240, 250, 0.75);
-  stroke-width: 1.5;
+  stroke-width: calc(1.5px * var(--stroke));
 }
 
 .lamp__svg .lash--lower {
-  stroke-width: 1.1;
+  stroke-width: calc(1.1px * var(--stroke));
 }
 
 /* The pupil closes when the light falls on it, and opens again more slowly. */
@@ -5811,7 +6014,7 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-retina-vessel {
   stroke: #ff8a6a;
-  stroke-width: 1.4;
+  stroke-width: calc(1.4px * var(--stroke));
 }
 
 .lamp__svg .lamp-nerve {
@@ -5821,12 +6024,12 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-line {
   stroke: rgba(232, 240, 250, 0.72);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 .lamp__svg .lamp-line--thin {
   stroke: rgba(232, 240, 250, 0.36);
-  stroke-width: 0.9;
+  stroke-width: calc(0.9px * var(--stroke));
 }
 
 .lamp__svg .lamp-cornea {
@@ -5850,10 +6053,9 @@ html:not(.js) .schema__play {
 }
 
 .lamp__svg .lamp-ray {
+  --beat: 1s;
   stroke: #efb24a;
-  stroke-width: 1.5;
-  stroke-dasharray: 4 6;
-  animation: schema-flow 1s linear infinite;
+  stroke-width: calc(1.5px * var(--stroke));
 }
 
 .lamp__svg .lamp-focus {
@@ -5926,17 +6128,18 @@ html:not(.js) .schema__play {
   }
 }
 
+/* (The markers are enlarged on a small view, their lines are not.) */
 .lamp__svg .lamp__dot {
   fill: rgba(10, 20, 36, 0.72);
   stroke: var(--spot-light, rgba(255, 255, 255, 0.85));
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke) / var(--marker-scale, 1));
   transition: fill 0.3s;
 }
 
 .lamp__svg .lamp__halo {
   fill: none;
   stroke: var(--spot-light, var(--c-sky));
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke) / var(--marker-scale, 1));
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
@@ -6193,12 +6396,6 @@ html:not(.js) .schema__play {
   transform-origin: center;
 }
 
-@keyframes lamp-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-}
-
 @keyframes lamp-pop {
   from {
     opacity: 0;
@@ -6211,38 +6408,70 @@ html:not(.js) .schema__play {
   }
 }
 
-/* 1. Eyelids: a slow double blink (site.js); the fold draws itself again and the lashes take the
-   colour of the eyelids. */
-.lamp__svg :is(.lash, .lamp-crease--upper) {
-  transition: stroke 0.6s;
+/* 1. Eyelids: a slow double blink (site.js); the lashes and the fold take the colour of the eyelids
+   (copies of them in that colour appear over them: lamp.js), and a point of light runs along the fold
+   as if drawing it again. */
+.lamp__svg :is(.lamp-lashes-lit, .lamp-crease--lit) {
+  opacity: 0;
+  transition: opacity 0.6s;
 }
 
-.lamp__figure[data-active="paupieres"] :is(.lash, .lamp-crease--upper) {
+/* (Stronger than the colour of the lashes on a dark schema, set further on.) */
+.lamp__figure .lamp__svg :is(.lamp-lashes-lit .lash, .lamp-crease--lit) {
   stroke: var(--c-rose);
 }
 
-.lamp__figure[data-active="paupieres"] .lamp-crease--upper {
-  stroke-dasharray: 1;
-  animation: lamp-draw 1.3s var(--ease-out) 0.2s both;
+.lamp__figure[data-active="paupieres"] :is(.lamp-lashes-lit, .lamp-crease--lit) {
+  opacity: 1;
+}
+
+.lamp__svg .lamp-pen {
+  fill: #ffe9ef;
+  stroke: none;
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  offset-path: var(--route);
+}
+
+.lamp__figure[data-active="paupieres"] .lamp-pen {
+  animation: lamp-pen 1.3s var(--ease-out) 0.2s both;
+}
+
+@keyframes lamp-pen {
+  0% {
+    opacity: 0;
+    offset-distance: 0%;
+  }
+
+  12%,
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    offset-distance: 100%;
+  }
 }
 
 /* 2. Cornea: the laser shots, from the centre outward, inside the turning ring of the eye tracker. */
 .lamp__svg .lamp-shots circle {
   fill: #fff;
   stroke: var(--c-violet);
-  stroke-width: 2.5;
+  stroke-width: calc(2.5px * var(--stroke));
 }
 
 .lamp__svg .lamp-scan {
   stroke: var(--c-violet);
-  stroke-width: 2;
-  stroke-dasharray: 3 7;
+  stroke-width: calc(2px * var(--stroke));
+  stroke-dasharray: calc(3px * var(--stroke)) calc(7px * var(--stroke));
 }
 
 .lamp__svg .lamp-zone {
   fill: rgba(196, 181, 253, 0.2);
   stroke: rgba(196, 181, 253, 0.55);
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--stroke));
 }
 
 .lamp__figure[data-active="cornee"] .lamp-zone {
@@ -6304,8 +6533,7 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-iol :is(circle, path) {
   stroke: var(--c-amber);
-  stroke-width: 2.4;
-  stroke-dasharray: 1;
+  stroke-width: calc(2.4px * var(--stroke));
 }
 
 .lamp__svg .lamp-iol .lamp-iol__optic {
@@ -6318,10 +6546,6 @@ html:not(.js) .schema__play {
 
 .lamp__figure[data-active="cristallin"] .lamp-iol {
   animation: lamp-iol 1.6s var(--ease-out) 0.7s both;
-}
-
-.lamp__figure[data-active="cristallin"] .lamp-iol > * {
-  animation: lamp-draw 1.2s var(--ease-out) 0.7s both;
 }
 
 @keyframes lamp-fog {
@@ -6357,7 +6581,7 @@ html:not(.js) .schema__play {
 /* 4. White of the eye: the needle comes to it, the medicine goes in, rings spread, the needle leaves. */
 .lamp__svg .lamp-needle__shaft {
   stroke: #eef3f8;
-  stroke-width: 1.6;
+  stroke-width: calc(1.6px * var(--stroke));
 }
 
 .lamp__svg .lamp-needle__hub {
@@ -6368,12 +6592,12 @@ html:not(.js) .schema__play {
 .lamp__svg .lamp-needle__barrel {
   fill: rgba(232, 240, 250, 0.16);
   stroke: rgba(232, 240, 250, 0.7);
-  stroke-width: 1.2;
+  stroke-width: calc(1.2px * var(--stroke));
 }
 
 .lamp__svg .lamp-ripples circle {
   stroke: var(--c-teal);
-  stroke-width: 1.5;
+  stroke-width: calc(1.5px * var(--stroke));
 }
 
 .lamp__svg .lamp-ripples .lamp-drop {
@@ -6455,18 +6679,18 @@ html:not(.js) .schema__play {
 /* 5. Optic nerve: the pressure pushes on the disc, signals run along the fibres toward the brain. */
 .lamp__svg .lamp-push path {
   stroke: var(--c-jade);
-  stroke-width: 2.8;
+  stroke-width: calc(2.8px * var(--stroke));
 }
 
-.lamp__svg .lamp-signals path {
+.lamp__svg .lamp-signals .march {
+  --beat: 0.9s;
   stroke: var(--c-jade);
-  stroke-width: 3.4;
-  stroke-dasharray: 0.08 0.18;
+  stroke-width: calc(3.4px * var(--stroke));
 }
 
 .lamp__svg .lamp-disc-ring {
   stroke: var(--c-jade);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .lamp__figure[data-active="nerf"] :is(.lamp-push, .lamp-signals) {
@@ -6479,10 +6703,6 @@ html:not(.js) .schema__play {
 
 .lamp__figure[data-active="nerf"] .lamp-signals {
   animation: lamp-zone 0.6s ease-out both;
-}
-
-.lamp__figure[data-active="nerf"] .lamp-signals path {
-  animation: lamp-run 0.9s linear calc(var(--k) * -0.3s) infinite;
 }
 
 .lamp__figure[data-active="nerf"] .lamp-disc-ring {
@@ -6505,12 +6725,6 @@ html:not(.js) .schema__play {
   }
 }
 
-@keyframes lamp-run {
-  to {
-    stroke-dashoffset: -0.26;
-  }
-}
-
 @keyframes lamp-ring {
   from {
     opacity: 0.95;
@@ -6524,33 +6738,49 @@ html:not(.js) .schema__play {
 }
 
 /* 6. Vessels: the blood beats along them, from the disc outward, and small haemorrhages appear. */
-.lamp__svg :is(.lamp-retina-vessel, .lamp-macula, .lamp-nerve) {
-  transition: stroke 0.5s, fill 0.5s;
+/* The parts of the gestures take their colour by copies that appear over them (lamp.js): the drawing
+   itself never changes colour, which would make the browser draw it all again. */
+.lamp__svg :is(.lamp-vessels-lit, .lamp-nerve-lit, .lamp-macula-lit) {
+  opacity: 0;
+  transition: opacity 0.5s;
 }
 
-.lamp__figure[data-active="vaisseaux"] .lamp-retina-vessel {
+.lamp__svg .lamp-vessels-lit path {
   stroke: var(--c-raspberry);
+  stroke-width: calc(1.4px * var(--stroke));
+}
+
+.lamp__svg .lamp-nerve-lit {
+  fill: none;
+  stroke: var(--c-jade);
+}
+
+.lamp__svg .lamp-macula-lit {
+  fill: #c9922e;
+  stroke: none;
+}
+
+:is(.lamp__figure[data-active="vaisseaux"] .lamp-vessels-lit, .lamp__figure[data-active="nerf"] .lamp-nerve-lit, .lamp__figure[data-active="macula"] .lamp-macula-lit) {
+  opacity: 1;
+}
+
+/* With the vessels' gesture, the beat swells them in raspberry. */
+.lamp__figure[data-active="vaisseaux"] .lamp-heartbeat path {
+  stroke: var(--c-raspberry);
+  stroke-width: calc(3.2px * var(--stroke));
   animation: lamp-vessel 0.85s ease-in-out infinite;
 }
 
 @keyframes lamp-vessel {
   30% {
-    stroke-width: 3.2;
+    opacity: 1;
   }
 }
 
-.lamp__figure[data-active="nerf"] .lamp-nerve {
-  stroke: var(--c-jade);
-}
-
-.lamp__figure[data-active="macula"] .lamp-macula {
-  fill: #c9922e;
-}
-
-.lamp__svg .lamp-pulses path {
+.lamp__svg .lamp-pulses .march {
+  --beat: 0.85s;
   stroke: var(--c-raspberry);
-  stroke-width: 3.4;
-  stroke-dasharray: 0.07 0.17;
+  stroke-width: calc(3.4px * var(--stroke));
 }
 
 .lamp__svg .lamp-bleeds circle {
@@ -6566,17 +6796,40 @@ html:not(.js) .schema__play {
   animation: lamp-zone 0.6s ease-out both;
 }
 
-.lamp__figure[data-active="vaisseaux"] .lamp-pulses path {
-  animation: lamp-beat 0.85s cubic-bezier(0.5, 0, 0.3, 1) infinite;
+.lamp__figure[data-active="vaisseaux"] .lamp-pulses .march > * {
+  animation-name: lamp-beat;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.3, 1);
+}
+
+/* The dashes rest while their gesture is not playing. */
+:is(.lamp__figure:not([data-active="nerf"]) .lamp-signals, .lamp__figure:not([data-active="vaisseaux"]) .lamp-pulses) .march > * {
+  animation: none;
 }
 
 .lamp__figure[data-active="vaisseaux"] .lamp-bleeds circle {
   animation: lamp-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) calc(0.6s + var(--k) * 0.22s) both;
 }
 
+/* Four dashes a quarter of the vessel apart: each beat sends them on a quarter. */
 @keyframes lamp-beat {
-  to {
-    stroke-dashoffset: -0.24;
+  0% {
+    offset-distance: 0%;
+  }
+
+  25% {
+    offset-distance: 25%;
+  }
+
+  50% {
+    offset-distance: 50%;
+  }
+
+  75% {
+    offset-distance: 75%;
+  }
+
+  100% {
+    offset-distance: 100%;
   }
 }
 
@@ -6589,10 +6842,6 @@ html:not(.js) .schema__play {
 .lamp__svg .lamp-drusen circle {
   fill: var(--c-gold);
   stroke: none;
-}
-
-.lamp__svg .lamp-ray {
-  transition: stroke 0.6s;
 }
 
 .lamp__figure[data-active="macula"] .lamp-drusen {
@@ -6631,7 +6880,7 @@ html:not(.js) .schema__play {
 .lamp__svg .lamp-detach {
   fill: rgba(220, 176, 230, 0.22);
   stroke: var(--c-plum);
-  stroke-width: 2;
+  stroke-width: calc(2px * var(--stroke));
 }
 
 .lamp__svg .lamp-shower circle {
@@ -6641,7 +6890,7 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-flash {
   stroke: #fff;
-  stroke-width: 3;
+  stroke-width: calc(3px * var(--stroke));
 }
 
 .lamp__figure[data-active="retine"] .lamp-shower {
@@ -6691,48 +6940,65 @@ html:not(.js) .schema__play {
 }
 
 @keyframes lamp-detach {
-  0% {
+  0%,
+  15% {
     opacity: 0;
-    d: var(--flat);
+    transform: rotate(var(--tilt)) scaleY(0.04) rotate(calc(-1 * var(--tilt)));
   }
 
-  15% {
+  25% {
     opacity: 1;
-    d: var(--flat);
   }
 
   70%,
   100% {
     opacity: 1;
-    d: var(--lifted);
+    transform: rotate(var(--tilt)) scaleY(1) rotate(calc(-1 * var(--tilt)));
   }
 }
 
 /* The inside of the eye lives on its own (lamp.js): the light comes in and is brought to a point on
    the fovea, a spark; the image leaves from the macula to the optic disc and along the nerve; the
    heart beats in the vessels and the choroid (all in one cycle of three seconds, a beat under one). */
+/* (Each a short dash sent along its line, which the screen moves by itself: lamp.js, traveller.) */
+.lamp__svg :is(.lamp-photons, .lamp-vision) path {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  offset-path: var(--route);
+  offset-rotate: auto;
+}
+
 .lamp__svg .lamp-photons path {
   stroke: #ffe6b3;
-  stroke-width: 3.6;
-  stroke-dasharray: 0.035 1.2;
-  stroke-dashoffset: 0.035;
+  stroke-width: calc(3.6px * var(--stroke));
   animation: lamp-photon 3s linear infinite;
+}
+
+.lamp__svg .lamp-photons--glow {
+  opacity: 0.3;
 }
 
 .lamp__svg .lamp-photons--glow path {
   stroke: #efb24a;
-  stroke-width: 10;
-  opacity: 0.3;
+  stroke-width: calc(10px * var(--stroke));
 }
 
 @keyframes lamp-photon {
   0% {
-    stroke-dashoffset: 0.035;
+    opacity: 0;
+    offset-distance: 0%;
+  }
+
+  2%,
+  48% {
+    opacity: 1;
   }
 
   50%,
   100% {
-    stroke-dashoffset: -1;
+    opacity: 0;
+    offset-distance: 100%;
   }
 }
 
@@ -6766,9 +7032,7 @@ html:not(.js) .schema__play {
 
 .lamp__svg .lamp-vision path {
   stroke: #6cc0ff;
-  stroke-width: 3.2;
-  stroke-dasharray: 0.06 1.2;
-  stroke-dashoffset: 0.06;
+  stroke-width: calc(3.2px * var(--stroke));
   animation: lamp-vision-out 3s linear infinite;
 }
 
@@ -6779,49 +7043,68 @@ html:not(.js) .schema__play {
 @keyframes lamp-vision {
   0%,
   52% {
-    stroke-dashoffset: 0.06;
+    opacity: 0;
+    offset-distance: 0%;
+  }
+
+  54%,
+  94% {
+    opacity: 1;
   }
 
   96%,
   100% {
-    stroke-dashoffset: -1;
+    opacity: 0;
+    offset-distance: 100%;
   }
 }
 
 @keyframes lamp-vision-out {
   0%,
   62% {
-    stroke-dashoffset: 0.06;
+    opacity: 0;
+    offset-distance: 0%;
+  }
+
+  64%,
+  94% {
+    opacity: 1;
   }
 
   96%,
   100% {
-    stroke-dashoffset: -1;
+    opacity: 0;
+    offset-distance: 100%;
   }
 }
 
-.lamp__svg .lamp-retina-vessel {
+.lamp__svg .lamp-heartbeat path {
+  stroke: #ffc2b0;
+  stroke-width: calc(2.6px * var(--stroke));
+  opacity: 0;
   animation: lamp-heart 0.86s ease-out calc(var(--k, 0) * 0.05s) infinite;
 }
 
 @keyframes lamp-heart {
   12% {
-    stroke: #ffc2b0;
-    stroke-width: 2.6;
+    opacity: 1;
   }
 
   45% {
-    stroke-width: 1.4;
+    opacity: 0.3;
   }
 }
 
-.lamp__svg .lamp-choroid {
+.lamp__svg .lamp-choroid-beat {
+  fill: #8c3a2c;
+  stroke: none;
+  opacity: 0;
   animation: lamp-choroid 0.86s ease-out infinite;
 }
 
 @keyframes lamp-choroid {
   12% {
-    fill: #8c3a2c;
+    opacity: 1;
   }
 }
 
@@ -6844,7 +7127,7 @@ html:not(.js) .schema__play {
 .lamp__svg .lamp-floaters > * {
   fill: rgba(215, 228, 248, 0.26);
   stroke: rgba(215, 228, 248, 0.45);
-  stroke-width: 1;
+  stroke-width: calc(1px * var(--stroke));
 }
 
 .lamp__svg .lamp-floaters > :is(path, .lamp-floater--ring) {
@@ -7428,9 +7711,11 @@ html:not(.js) .schema__play {
 }
 
 .page-head .drawing {
-  --drawing-pos: 92% 30%;
   --drawing-opacity: 0.06;
-  --drawing-size: auto 160%;
+  /* 1.6 times the height of the head. */
+  --drawing-w: 256cqh;
+  --drawing-x: 0.92;
+  --drawing-y: 0.3;
 }
 
 .page-head__grid {
@@ -7499,8 +7784,15 @@ html:not(.js) .schema__play {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* The drawing is revealed from the left: its frame slides in while the drawing slides the other
+     way by as much, so it stays in place (two moves the screen makes by itself; a clip that grows
+     was worked out again at each frame). */
   .page-head .drawing {
     animation: drawing-sweep 2.2s var(--ease-in-out) 0.1s both;
+  }
+
+  .page-head .drawing > svg {
+    animation: drawing-sweep-back 2.2s var(--ease-in-out) 0.1s both;
   }
 
   .page-head::after {
@@ -7525,11 +7817,22 @@ html:not(.js) .schema__play {
 
 @keyframes drawing-sweep {
   from {
-    clip-path: inset(0 100% 0 0);
+    transform: translateX(-100%);
   }
 
   to {
-    clip-path: inset(0);
+    transform: none;
+  }
+}
+
+/* (The width of the frame: the drawing layer is a size container.) */
+@keyframes drawing-sweep-back {
+  from {
+    transform: translateX(100cqw);
+  }
+
+  to {
+    transform: none;
   }
 }
 
@@ -8096,6 +8399,11 @@ html:not(.js) .schema__play {
 }
 
 /* A slow beacon on the urgent column. */
+.urgent-card--now .urgent-card__when {
+  position: relative;
+  isolation: isolate;
+}
+
 .urgent-card--now .urgent-card__when::before {
   content: "";
   width: 10px;
@@ -8104,19 +8412,37 @@ html:not(.js) .schema__play {
   background: var(--c-alert);
 }
 
-/* It pulses twice once the card is on screen. */
-.urgent-card--now.is-visible .urgent-card__when::before {
+/* It pulses twice once the card is on screen: a disc of its colour, behind it, grows to 10px around
+   it and fades (moved by the screen; a spreading shadow was painted again at every frame). */
+.urgent-card--now .urgent-card__when::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -10px;
+  z-index: -1;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  border-radius: 50%;
+  background: rgb(181, 72, 43);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.urgent-card--now.is-visible .urgent-card__when::after {
   animation: beacon 2.4s ease-out 0.6s 2;
 }
 
 @keyframes beacon {
   0% {
-    box-shadow: 0 0 0 0 rgba(181, 72, 43, 0.6);
+    opacity: 0.6;
+    scale: 0.3333;
   }
 
   70%,
   100% {
-    box-shadow: 0 0 0 10px rgba(181, 72, 43, 0);
+    opacity: 0;
+    scale: 1;
   }
 }
 
@@ -8581,17 +8907,15 @@ html:has(.chapter-nav) {
    plays by itself beside its steps (site.js), and the way to the intervention to close it. Each
    chapter has its colour and, behind it, a large drawing of the operation (atmos.js); the chapters
    alternate their sides, with much air between them. */
-/* A chapter off screen is left aside by the browser (its drawings, its animations, its layers are
-   not worked out); it already cuts what overflows it, so nothing changes to what is seen. The size
-   given is a guess for a chapter not yet shown (about their height on a phone); once shown, the
-   browser keeps its real size. */
+/* (No content-visibility: auto here: to find the chapters near the screen, Firefox then watches them
+   with an observer of its own, and as long as a page has one, it brings up to date on the main
+   thread, five times a second, everything that moves in it. The chapters off screen rest anyway:
+   their animations are paused.) */
 .chapter {
   --film-duration: 3s;
   position: relative;
   isolation: isolate;
   overflow: clip;
-  content-visibility: auto;
-  contain-intrinsic-block-size: auto 1500px;
 }
 
 .chapter__head {
@@ -8753,10 +9077,19 @@ html:has(.chapter-nav) {
   margin: 0;
   padding: 0;
   list-style: none;
+  counter-reset: chapter-step;
+}
+
+/* What changes as the steps go by appears or fades over what was there (tint, rail, number, title):
+   a colour that changes is painted again at every frame, a layer that appears is shown by the screen
+   alone, and the steps change by themselves every few seconds. */
+.chapter__steps li {
+  position: relative;
 }
 
 .chapter-step {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 2.3rem minmax(0, 1fr);
   gap: 0 1rem;
@@ -8769,12 +9102,27 @@ html:has(.chapter-nav) {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: color 0.4s, background-color 0.4s;
+  counter-increment: chapter-step;
+  transition: background-color 0.4s;
+}
+
+/* The tint of the step playing, under its content. */
+.chapter-step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--chapter-tint);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
 }
 
 /* The piece of rail down to the next step: from under the ring of this number (top padding 0.7rem
-   + number 2.3rem + 0.4rem) to above the ring of the next one (its top padding is 0.7rem). */
-.chapter-step::before {
+   + number 2.3rem + 0.4rem) to above the ring of the next one (its top padding is 0.7rem); grey
+   under the step, in the colour of the operation over it once the step is done. */
+:is(.chapter__steps li, .chapter-step)::before {
   content: "";
   position: absolute;
   top: 3.4rem;
@@ -8783,15 +9131,21 @@ html:has(.chapter-nav) {
   width: 2px;
   border-radius: 2px;
   background: var(--c-line-dark);
-  transition: background-color 0.4s;
 }
 
+.chapter__steps .chapter-step::before {
+  background: var(--chapter-accent);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.chapter__steps li:last-child::before,
 .chapter__steps li:last-child .chapter-step::before {
   display: none;
 }
 
 .chapter-step.is-done::before {
-  background: var(--chapter-accent);
+  opacity: 1;
 }
 
 .chapter-step__num {
@@ -8806,37 +9160,111 @@ html:has(.chapter-nav) {
   background: var(--c-night);
   color: rgba(255, 255, 255, 0.7);
   font: 700 0.8rem/1 var(--font-mono);
-  transition: background-color 0.4s, border-color 0.4s, color 0.4s, scale 0.4s var(--ease-out);
+  transition: scale 0.4s var(--ease-out);
+}
+
+/* The number of the step playing, filled with the colour of the operation: the same figure on that
+   colour, over the number. */
+.chapter-step__num::before {
+  content: counter(chapter-step, decimal-leading-zero);
+  position: absolute;
+  inset: -1.5px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--chapter-accent);
+  color: var(--c-night);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.chapter-step.is-active::after,
+.chapter-step.is-active .chapter-step__num::before {
+  opacity: 1;
 }
 
 /* The ring just outside the number: its box is 5px larger on each side than the border box of the
-   number (border 1.5px, hence -6.5px from the padding box). It fills in the time of the step. */
+   number (border 1.5px, hence -6.5px from the padding box). It fills in the time of the step, in two
+   half rings that only turn (a line that grows is drawn again at every frame; a turning one is moved
+   by the screen alone): first a half ring turns into the right half of the box, cut by its svg, whose
+   left edge is the centre of the ring (the circle is centred on it, so only its right half is drawn);
+   then a second half ring, the border of the number's ::after, turns over the left half (2px at
+   least: Chrome rounds borders down to whole pixels). */
 .chapter-step__ring {
   position: absolute;
   top: -6.5px;
-  left: -6.5px;
+  left: 50%;
   width: calc(100% + 13px);
   max-width: none;
   height: calc(100% + 13px);
-  overflow: visible;
-  rotate: -90deg;
+  overflow: hidden;
   fill: none;
   stroke: var(--chapter-accent);
   stroke-width: 2;
   stroke-linecap: round;
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
+  stroke-dasharray: 50 50;
   opacity: 0;
+  pointer-events: none;
+}
+
+.chapter-step__ring circle {
+  cx: 0;
+  transform-box: view-box;
+  transform-origin: 0 24px;
+  transform: rotate(-270deg);
+}
+
+.chapter-step__num::after {
+  content: "";
+  position: absolute;
+  inset: -6.5px;
+  border: max(2px, (2.3rem + 10px) / 24) solid transparent;
+  border-top-color: var(--chapter-accent);
+  border-right-color: var(--chapter-accent);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .chapter.is-timing .chapter-step.is-active .chapter-step__ring {
   opacity: 1;
-  animation: chapter-ring var(--film-duration) linear both;
 }
 
-@keyframes chapter-ring {
+/* (Repeating rather than holding at their end: the step changes as they end, and Firefox brings an
+   animation that ends up to date at every frame while it is off screen.) */
+.chapter.is-timing .chapter-step.is-active .chapter-step__ring circle {
+  animation: chapter-ring-right var(--film-duration) linear infinite;
+}
+
+.chapter.is-timing .chapter-step.is-active .chapter-step__num::after {
+  animation: chapter-ring-left var(--film-duration) linear infinite;
+}
+
+@keyframes chapter-ring-right {
+  from {
+    transform: rotate(-270deg);
+  }
+
+  50%,
   to {
-    stroke-dashoffset: 0;
+    transform: rotate(-90deg);
+  }
+}
+
+@keyframes chapter-ring-left {
+  0%,
+  50% {
+    opacity: 0;
+    transform: rotate(45deg);
+  }
+
+  50.01% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(225deg);
   }
 }
 
@@ -8844,11 +9272,13 @@ html:has(.chapter-nav) {
   padding-top: 0.35rem;
 }
 
+/* (White, more or less opaque, rather than more or less white: see above.) */
 .chapter-step__title {
   display: block;
-  color: inherit;
+  color: #fff;
   font: 560 clamp(1.1rem, 0.98rem + 0.4vw, 1.4rem)/1.2 var(--font-display);
-  transition: translate 0.5s var(--ease-out);
+  opacity: 0.6;
+  transition: translate 0.5s var(--ease-out), opacity 0.4s;
 }
 
 /* The text of the step opens under its title while the step plays. */
@@ -8862,6 +9292,7 @@ html:has(.chapter-nav) {
   display: block;
   min-height: 0;
   overflow: hidden;
+  color: var(--c-on-night);
   font-size: 1rem;
   line-height: 1.5;
   opacity: 0;
@@ -8879,13 +9310,13 @@ html:has(.chapter-nav) {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .chapter-step:hover {
+  .chapter-step:not(.is-active):hover {
     background: rgba(255, 255, 255, 0.035);
-    color: rgba(255, 255, 255, 0.85);
   }
 
   .chapter-step:not(.is-active):hover .chapter-step__title {
     translate: 4px 0;
+    opacity: 0.85;
   }
 
   .chapter-step:not(.is-active):hover .chapter-step__num {
@@ -8898,19 +9329,8 @@ html:has(.chapter-nav) {
   color: var(--chapter-accent);
 }
 
-.chapter-step.is-active {
-  background: var(--chapter-tint);
-  color: var(--c-on-night);
-}
-
 .chapter-step.is-active .chapter-step__title {
-  color: #fff;
-}
-
-.chapter-step.is-active .chapter-step__num {
-  border-color: var(--chapter-accent);
-  background: var(--chapter-accent);
-  color: var(--c-night);
+  opacity: 1;
 }
 
 /* Pause and play, said in words beside the icon. */
@@ -9024,9 +9444,12 @@ html:has(.chapter-nav) {
   color: var(--chapter-accent);
   opacity: 0.17;
   pointer-events: none;
-  translate: calc(var(--ax, 0) * -46px) calc(var(--drift, 0) * -120px + var(--ay, 0) * -46px);
+  /* The drift follows the scroll as it comes (a transition started again at each frame of the scroll
+     kept the browser busy); only the lean toward the pointer glides. */
+  translate: 0 calc(var(--drift, 0) * -120px);
   rotate: calc(var(--drift, 0) * var(--spin));
-  transition: translate 0.9s var(--ease-out), rotate 0.9s var(--ease-out);
+  transform: translate(calc(var(--ax, 0) * -46px), calc(var(--ay, 0) * -46px));
+  transition: transform 0.9s var(--ease-out);
 }
 
 :is(.chapter--laser, .chapter--ivt) .chapter__atmo {
@@ -9065,10 +9488,15 @@ html:has(.chapter-nav) {
   stroke: none;
 }
 
-/* Drawn line after line, the shots fired from the centre outward, the grains carried away. */
+/* Drawn line after line, the shots fired from the centre outward, the grains carried away. Each
+   line appears and settles into place in turn, growing a little from the centre of the drawing:
+   moves the screen makes by itself. (Lines drawn along their length made the browser draw the whole
+   drawing again at each frame, which a phone could not keep up with while scrolling.) */
 .js .chapter__atmo [pathLength] {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  opacity: 0;
+  scale: 0.94;
+  transform-box: view-box;
+  transform-origin: 500px 500px;
 }
 
 .js .chapter__atmo :is(.atmo__dash, .atmo__shot, .atmo__grain) {
@@ -9081,7 +9509,7 @@ html:has(.chapter-nav) {
 }
 
 .js .chapter__atmo.is-drawn [pathLength] {
-  animation: atmo-draw 2.4s var(--ease-out) forwards;
+  animation: atmo-draw 1.4s var(--ease-out) forwards;
   animation-delay: calc(var(--i, 0) * 0.09s);
 }
 
@@ -9115,7 +9543,8 @@ html:has(.chapter-nav) {
 }
 
 .js .chapter__atmo.is-settled [pathLength] {
-  stroke-dashoffset: 0;
+  opacity: 1;
+  scale: none;
 }
 
 .js .chapter__atmo.is-settled .atmo__dash {
@@ -9133,7 +9562,8 @@ html:has(.chapter-nav) {
 
 @keyframes atmo-draw {
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
+    scale: 1;
   }
 }
 
@@ -9187,13 +9617,14 @@ html:has(.chapter-nav) {
   .chapter__atmo {
     translate: none;
     rotate: none;
+    transform: none;
     transition: none;
   }
 
   .js .chapter__atmo.is-drawn :is([pathLength], .atmo__dash, .atmo__shot, .atmo__grain, .atmo__blink) {
     animation: none;
-    stroke-dashoffset: 0;
     opacity: 1;
+    scale: none;
   }
 
   .js .chapter__atmo .atmo__grain {
@@ -10544,7 +10975,7 @@ ul.steps-nav,
 }
 
 .film.is-timing .film__step.is-active .film__progress span {
-  animation: film-progress var(--film-duration) linear both;
+  animation: film-progress var(--film-duration) linear infinite;
 }
 
 @keyframes film-progress {
@@ -11100,6 +11531,25 @@ main[data-op="ivt"] {
   overflow: visible;
 }
 
+/* What moves inside the round field of a vignette lies in a window of the page, under the rest of
+   the drawing (vignettes.js): cut by a clip inside the drawing, it was drawn again at every frame.
+   (overflow: clip, not hidden: Firefox counts what a scrolling box hides as out of view.) */
+.vignette {
+  position: relative;
+}
+
+.vignette__window {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.vignette > svg {
+  position: relative;
+}
+
 .vignette svg :is(path, circle, line, rect, ellipse) {
   fill: none;
   stroke: currentColor;
@@ -11141,9 +11591,16 @@ main[data-op="ivt"] {
   transform-origin: center;
 }
 
+/* Lines that draw themselves (vignettes.js, drawn): their short pieces appear one after the other
+   as the line reaches them, in the time --draw of the line, from --draw-at (a line grown by its
+   dashes was drawn again at every frame). */
+.is-playing :is(.vg-year, .vg-check, .vg-profile, .vg-rim) > path {
+  animation: vg-draw calc(var(--b) * var(--draw)) linear calc(var(--draw-at) + var(--a) * var(--draw)) both;
+}
+
 @keyframes vg-draw {
   from {
-    stroke-dashoffset: 1;
+    opacity: 0;
   }
 }
 
@@ -11221,13 +11678,20 @@ main[data-op="ivt"] {
   }
 }
 
-.is-playing .vg-bulb {
+/* The bulb brightens: a warmer copy over it appears and fades. */
+.vignette svg .vg-bulb-glow {
+  fill: #ffd76a;
+  stroke: none;
+  opacity: 0;
+}
+
+.is-playing .vg-bulb-glow {
   animation: vg-glow 1.4s ease-in-out 0.1s 2;
 }
 
 @keyframes vg-glow {
   50% {
-    fill: #ffd76a;
+    opacity: 1;
   }
 }
 
@@ -11330,7 +11794,8 @@ main[data-op="ivt"] {
   transform-origin: 50% 100%;
 }
 
-.vignette svg .vg-person--hit .vg-body {
+/* The one hit: its copy in the colour of the disease, over it, appears. */
+.vignette svg .vg-body-hit {
   fill: var(--patho-accent);
 }
 
@@ -11338,13 +11803,13 @@ main[data-op="ivt"] {
   animation: vg-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) calc(0.2s + var(--k) * 0.25s) both;
 }
 
-.is-playing .vg-person--hit .vg-body {
+.is-playing .vg-body-hit {
   animation: vg-hit-fill 0.6s ease-out 1.3s both;
 }
 
 @keyframes vg-hit-fill {
   from {
-    fill: #fff;
+    opacity: 0;
   }
 }
 
@@ -11382,9 +11847,20 @@ main[data-op="ivt"] {
   }
 }
 
+/* A laser spot lands white and takes the colour: a white copy over it fades. */
 .vignette svg .vg-shot {
+  --shot-at: calc(0.15s + var(--k) * 0.05s);
+}
+
+.vignette svg .vg-shot > circle {
   fill: var(--patho-accent);
   stroke-width: 1;
+}
+
+.vignette svg .vg-shot > .vg-shot-flash {
+  fill: #fff;
+  stroke: none;
+  opacity: 0;
 }
 
 .vignette svg .vg-macula {
@@ -11392,14 +11868,23 @@ main[data-op="ivt"] {
 }
 
 .is-playing .vg-shot {
-  animation: vg-shot 0.5s ease-out calc(0.15s + var(--k) * 0.05s) both;
+  animation: vg-shot 0.5s ease-out var(--shot-at) both;
+}
+
+.is-playing .vg-shot-flash {
+  animation: vg-shot-flash 0.5s ease-out var(--shot-at) both;
 }
 
 @keyframes vg-shot {
   from {
     opacity: 0;
     scale: 2;
-    fill: #fff;
+  }
+}
+
+@keyframes vg-shot-flash {
+  from {
+    opacity: 1;
   }
 }
 
@@ -11417,9 +11902,18 @@ main[data-op="ivt"] {
   transform-origin: 60px 106px;
 }
 
+/* The sand runs through the neck: its grains, dashes 3 long every 7, go down one after the other
+   along it (7 grains in turn, 12.5 units a second, for 2.8 s: --n turns each), moved by the screen
+   (dashes shifted along a line were drawn again at every frame). */
 .vignette svg .vg-stream {
-  stroke: currentColor;
-  stroke-dasharray: 3 4;
+  opacity: 0;
+}
+
+.vignette svg .vg-stream > path {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  offset-path: path("M60 56V105");
+  offset-rotate: auto;
   opacity: 0;
 }
 
@@ -11432,7 +11926,11 @@ main[data-op="ivt"] {
 }
 
 .is-playing .vg-stream {
-  animation: vg-stream 2.8s linear 0.2s both, vg-flow 0.56s linear 0.2s 5;
+  animation: vg-stream 2.8s linear 0.2s both;
+}
+
+.is-playing .vg-stream > path {
+  animation: vg-trickle 3.92s linear calc(0.2s - var(--k) * 0.56s) var(--n) both;
 }
 
 @keyframes vg-empty {
@@ -11454,45 +11952,69 @@ main[data-op="ivt"] {
   }
 }
 
-@keyframes vg-flow {
-  to {
-    stroke-dashoffset: -7;
+@keyframes vg-trickle {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+
+  2.04% {
+    opacity: 0;
+  }
+
+  8.16%,
+  91.84% {
+    opacity: 1;
+  }
+
+  97.96% {
+    opacity: 0;
+  }
+
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
   }
 }
 
-.vignette svg .vg-year {
+.vignette svg .vg-year > path {
   stroke: var(--patho-accent);
   stroke-width: 4;
-  stroke-dasharray: 1;
-  rotate: -90deg;
-  transform-origin: 60px 60px;
+}
+
+.vg-year {
+  --draw: 2.2s;
+  --draw-at: 0.2s;
 }
 
 .vignette svg .vg-month {
   fill: #fff;
 }
 
-.vignette svg .vg-check {
+/* A month gone by: its copy, filled, over it, appears. */
+.vignette svg .vg-month-fill {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0;
+}
+
+.vignette svg .vg-check > path {
   stroke-width: 4;
-  stroke-dasharray: 1;
 }
 
-.is-playing .vg-year {
-  animation: vg-draw 2.2s linear 0.2s both;
+.vg-check {
+  --draw: 0.6s;
+  --draw-at: 2.5s;
 }
 
-.is-playing .vg-month {
+.is-playing .vg-month-fill {
   animation: vg-month 0.3s ease-out calc(0.2s + var(--k) * 0.18s) both;
 }
 
 @keyframes vg-month {
   to {
-    fill: currentColor;
+    opacity: 1;
   }
-}
-
-.is-playing .vg-check {
-  animation: vg-draw 0.6s var(--ease-out) 2.5s both;
 }
 
 /* AMD: the macula and its drusen; the waving lines and the central spot; the OCT; the grid on the
@@ -11564,12 +12086,9 @@ main[data-op="ivt"] {
   }
 }
 
-.vignette svg .vg-profile {
-  stroke-dasharray: 1;
-}
-
-.is-playing .vg-profile {
-  animation: vg-draw 2s var(--ease-in-out) 0.3s both;
+.vg-profile {
+  --draw: 2s;
+  --draw-at: 0.3s;
 }
 
 .vignette svg .vg-fluid {
@@ -11618,21 +12137,22 @@ main[data-op="ivt"] {
   animation-delay: calc(0.3s + var(--d) * 1.5s) !important;
 }
 
-.vignette svg .vg-rim {
+.vignette svg .vg-rim > path {
   stroke: var(--patho-accent);
   stroke-width: 4;
-  stroke-dasharray: 1;
 }
 
-.is-playing .vg-rim {
-  animation: vg-draw 1.6s var(--ease-out) 1s both;
+.vg-rim {
+  --draw: 1.6s;
+  --draw-at: 1s;
 }
 
 .vignette svg .vg-day {
   fill: #fff;
 }
 
-.vignette svg .vg-day--hit {
+/* The day of the appointment: its copy in the colour of the disease, over it, appears. */
+.vignette svg .vg-day-fill {
   fill: var(--patho-accent);
 }
 
@@ -11680,13 +12200,19 @@ main[data-op="ivt"] {
   animation: vg-day 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2s both;
 }
 
-@keyframes vg-day {
-  from {
-    fill: #fff;
-  }
+.is-playing .vg-day-fill {
+  animation: vg-day-fill 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 2s both;
+}
 
+@keyframes vg-day {
   60% {
     scale: 1.25;
+  }
+}
+
+@keyframes vg-day-fill {
+  from {
+    opacity: 0;
   }
 }
 
@@ -11735,8 +12261,8 @@ main[data-op="ivt"] {
   }
 }
 
-.is-playing.vignette--decollement-traitements .vg-shot {
-  animation-delay: calc(2s + var(--k) * 0.14s);
+.vignette.vignette--decollement-traitements svg .vg-shot {
+  --shot-at: calc(2s + var(--k) * 0.14s);
 }
 
 .vignette svg .vg-curtain {
@@ -12550,7 +13076,8 @@ main[data-op="ivt"] {
 
 .team-photo .drawing {
   --drawing-opacity: 0.08;
-  --drawing-pos: 50% 50%;
+  --drawing-x: 0.5;
+  --drawing-y: 0.5;
 }
 
 .team-photo__inner {
@@ -12585,15 +13112,33 @@ main[data-op="ivt"] {
     transform: none;
   }
 
+  /* (The words come into focus as those of the titles: their blurred copy first, then the sharp
+     words over it, site.js adding the copies; without them, the words simply appear.) */
   .js .team-photo :is(.team-photo__title, .team-photo__text) {
     opacity: 0;
-    filter: blur(8px);
-    transition: opacity 0.8s var(--ease-out) 0.9s, filter 0.8s var(--ease-out) 0.9s;
+    transition: opacity 0.6s var(--ease-out) 0.5s;
   }
 
   .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text) {
     opacity: 1;
-    filter: none;
+  }
+
+  .js .team-photo :is(.team-photo__title, .team-photo__text).has-focus-copy {
+    opacity: 1;
+    transition: none;
+  }
+
+  .js .team-photo :is(.team-photo__title, .team-photo__text).has-focus-copy:not(.is-arrived) > :is(.focus__sharp, .focus__soft) {
+    opacity: 0;
+  }
+
+  .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text).has-focus-copy:not(.is-arrived) > .focus__sharp {
+    animation: focus-sharp 0.6s linear 0.5s both;
+  }
+
+  .js .team-photo.is-visible :is(.team-photo__title, .team-photo__text).has-focus-copy:not(.is-arrived) > .focus__soft {
+    display: block;
+    animation: focus-soft 0.6s linear 0.5s both;
   }
 
   .js .team-photo__icon {
@@ -12912,7 +13457,8 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 .site-footer__drawing {
   --drawing-color: var(--c-sky);
   --drawing-opacity: 0.07;
-  --drawing-pos: 85% 20%;
+  --drawing-x: 0.85;
+  --drawing-y: 0.2;
 }
 
 .site-footer .container {
@@ -13185,19 +13731,22 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 /* ---------- Scroll reveals (triggered as soon as the element enters the screen) ---------- */
 
 @media (prefers-reduced-motion: no-preference) {
-  /* As soon as the element enters the screen it rises into place, once; elements entering
-     together follow each other (site.js gives each its delay). */
+  /* A little before the element reaches the screen (a phone shows the page scrolled before the
+     script hears of it), it rises into place, once, quickly; elements arriving together follow each
+     other closely (site.js gives each its delay). Short, so that a section is there as soon as it is
+     reached, and few elements are on the move at once while scrolling. Only opacity and position
+     change, which the screen does by itself. */
   .js [data-reveal] {
     opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.6s var(--ease-out), transform 0.8s var(--ease-out);
+    transform: translateY(20px);
+    transition: opacity 0.35s var(--ease-out), transform 0.5s var(--ease-out);
     transition-delay: var(--reveal-delay, 0s);
   }
 
+  /* (A visual of the head of the page: it comes closer as it appears.) */
   .js [data-reveal="focus"] {
-    filter: blur(10px);
-    transform: scale(1.03);
-    transition: opacity 0.8s var(--ease-out), transform 1s var(--ease-out), filter 0.8s var(--ease-out);
+    transform: scale(1.04);
+    transition: opacity 0.5s var(--ease-out), transform 0.65s var(--ease-out);
   }
 
   .js [data-reveal].is-visible {
@@ -13214,65 +13763,184 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
     animation-delay: var(--hero-delay, 0.2s);
   }
 
+  /* Titles come into focus word by word, like an eye adjusting (words split at build time), and the
+     title of the home page letter by letter: a blurred copy of each word shows first, then the sharp
+     word over it while the copy goes (site.js adds the copies; only opacities change, which the
+     screen does by itself; a blur that changes would be drawn again at every frame). Without the
+     copies (no script yet, or the title already playing when the script came), the words simply
+     rise into place. The page title, always first on screen, starts with the first paint. */
   .hero__title-main .letter {
     display: inline-block;
     opacity: 0;
-    filter: blur(10px);
     transform: translateY(0.12em);
-    animation: letter-focus 1s var(--ease-out) forwards;
+    animation: focus-in 1s var(--ease-out) both;
     animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
-  /* Titles come into focus word by word, like an eye adjusting (words split at build time). */
   .js [data-focus] .w {
     opacity: 0;
-    filter: blur(12px);
     transform: translateY(0.22em);
   }
 
-  /* The page title, always first on screen, starts with the first paint (no script needed). */
   .js [data-focus].is-focused .w,
   .js .page-head [data-focus] .w {
-    animation: letter-focus 0.8s var(--ease-out) forwards;
-    animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 55ms);
+    animation: focus-in 0.55s var(--ease-out) both;
+    animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
-  /* Photos open like a pupil widening, then settle. */
-  .js [data-aperture] {
-    clip-path: circle(24% at 50% 50%);
-    transition: clip-path 0.9s var(--ease-out);
+  .js :is([data-focus] .w, .hero__title-main .letter).has-focus-copy {
+    opacity: 1;
+    animation-name: focus-rise;
   }
 
-  .js [data-aperture] > picture {
-    scale: 1.12;
-    transition: scale 0.9s var(--ease-out);
+  .js [data-focus] .w.has-focus-copy:not(.is-arrived) > :is(.focus__sharp, .focus__soft),
+  .js .hero__title-main .letter.has-focus-copy:not(.is-arrived) > :is(.focus__sharp, .focus__soft) {
+    opacity: 0;
   }
 
-  .js [data-aperture].is-open {
-    clip-path: circle(75% at 50% 50%);
+  .js :is([data-focus].is-focused, .page-head [data-focus]) .w.has-focus-copy:not(.is-arrived) > .focus__sharp {
+    animation: focus-sharp 0.55s linear both;
+    animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
-  .js [data-aperture].is-open > picture {
-    scale: 1;
+  .js :is([data-focus].is-focused, .page-head [data-focus]) .w.has-focus-copy:not(.is-arrived) > .focus__soft {
+    display: block;
+    animation: focus-soft 0.55s linear both;
+    animation-delay: calc(var(--focus-delay, 0.05s) + var(--w) * 35ms);
   }
 
-  /* Photos side by side open like eyelids, one after the other. */
-  .js [data-aperture="lid"] {
-    clip-path: inset(48% 0 48% 0);
-    transition: clip-path 0.95s var(--ease-out) var(--open-delay, 0s);
+  .js .hero__title-main .letter.has-focus-copy:not(.is-arrived) > .focus__sharp {
+    animation: focus-sharp 1s linear both;
+    animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
-  .js [data-aperture="lid"].is-open {
-    clip-path: inset(0);
+  .js .hero__title-main .letter.has-focus-copy:not(.is-arrived) > .focus__soft {
+    display: block;
+    animation: focus-soft 1s linear both;
+    animation-delay: calc(0.15s + var(--i) * 45ms);
   }
 
-  .js [data-aperture="lid"] > picture {
-    transition-delay: var(--open-delay, 0s);
+  /* Photos open as they reach the screen, like a pupil widening (a disc), or, side by side, like
+     eyelids one after the other (a band), then settle. The picture sits in a frame of its own that
+     grows while the picture grows back by the inverse amount, so that it seems to stay in place
+     (site.js adds the frame; keyframes below): only scales change, which the screen does by itself
+     (a cut that changes would be drawn again at every frame). */
+  .js [data-aperture]:not([data-aperture="lid"]):not(.is-open) .aperture {
+    scale: 0.32;
+  }
+
+  .js [data-aperture]:not([data-aperture="lid"]):not(.is-open) .aperture > picture {
+    scale: 3.5;
+  }
+
+  .js [data-aperture="lid"]:not(.is-open) .aperture {
+    scale: 1 0.04;
+  }
+
+  .js [data-aperture="lid"]:not(.is-open) .aperture > picture {
+    scale: 1.12 28;
+  }
+
+  .js [data-aperture].is-open .aperture {
+    animation: aperture-disc 0.75s linear both;
+  }
+
+  .js [data-aperture].is-open .aperture > picture {
+    animation: aperture-disc-picture 0.75s linear both;
+  }
+
+  .js [data-aperture="lid"].is-open .aperture {
+    animation: aperture-band 0.8s linear var(--open-delay, 0s) both;
+  }
+
+  .js [data-aperture="lid"].is-open .aperture > picture {
+    animation: aperture-band-picture 0.8s linear var(--open-delay, 0s) both;
   }
 }
 
 .w {
   display: inline-block;
+}
+
+/* The two layers of a word coming into focus (site.js): the sharp word in place, its blurred copy
+   over it (hidden from screen readers, not selectable). */
+.has-focus-copy {
+  position: relative;
+}
+
+.focus__sharp {
+  display: inline-block;
+}
+
+:is(.team-photo__title, .team-photo__text) > .focus__sharp {
+  display: block;
+}
+
+.focus__soft {
+  display: none;
+  position: absolute;
+  inset: 0;
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+:is(.w, .letter) > .focus__soft {
+  white-space: nowrap;
+}
+
+/* The frame of a photo that opens (site.js): a disc a little larger than the diagonal of the photo,
+   centred on it, or the photo itself for a band; the picture inside keeps the place and the size it
+   has in the photo (--aperture-w, -h, -d: its size, measured by site.js). It cuts what goes beyond
+   it without being a scroll container (overflow: clip). */
+.aperture {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  width: var(--aperture-d, 150%);
+  height: var(--aperture-d, 150%);
+  margin: calc(var(--aperture-d, 150%) / -2) 0 0 calc(var(--aperture-d, 150%) / -2);
+  overflow: hidden;
+  overflow: clip;
+  border-radius: 50%;
+}
+
+[data-aperture="lid"] .aperture {
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+}
+
+.aperture > picture {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--aperture-w, 100%);
+  height: var(--aperture-h, 100%);
+  margin: calc(var(--aperture-h, 100%) / -2) 0 0 calc(var(--aperture-w, 100%) / -2);
+}
+
+[data-aperture="lid"] .aperture > picture {
+  inset: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+
+/* (The picture drifts in its frame while scrolling, as in any photo frame: [data-parallax] above.) */
+[data-parallax] .aperture > picture img {
+  width: 100%;
+  height: 112%;
+  object-fit: cover;
+  transform: translateY(var(--py, -6%));
+}
+
+/* Open, the frame no longer cuts anything. */
+.aperture.is-arrived {
+  overflow: visible;
 }
 
 /* Arrived (site.js, at the end of their animation): a word, a letter or a part of the hero keeps its
@@ -13285,6 +13953,20 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   transform: none !important;
 }
 
+.is-arrived > .focus__soft {
+  display: none !important;
+}
+
+.is-arrived > .focus__sharp {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+.aperture.is-arrived,
+.aperture > picture.is-arrived {
+  scale: none !important;
+}
+
 @keyframes hero-in {
   to {
     opacity: 1;
@@ -13292,12 +13974,182 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
   }
 }
 
-@keyframes letter-focus {
+/* A word without its blurred copy: it simply rises into place. */
+@keyframes focus-in {
   to {
     opacity: 1;
-    filter: blur(0);
     transform: none;
   }
+}
+
+/* A word with its copy: the word rises; its blurred copy shows first, then the sharp word over it
+   while the copy goes (the opacities follow the ease-out curve of the site). */
+@keyframes focus-rise {
+  to {
+    transform: none;
+  }
+}
+
+@keyframes focus-soft {
+  0% { opacity: 0; }
+  3% { opacity: 0.264; }
+  6% { opacity: 0.51; }
+  10% { opacity: 0.802; }
+  15% { opacity: 0.73; }
+  22% { opacity: 0.469; }
+  32% { opacity: 0.239; }
+  45% { opacity: 0.093; }
+  62% { opacity: 0.022; }
+  80% { opacity: 0.002; }
+  100% { opacity: 0; }
+}
+
+@keyframes focus-sharp {
+  0% { opacity: 0; }
+  3% { opacity: 0; }
+  6% { opacity: 0.068; }
+  10% { opacity: 0.251; }
+  15% { opacity: 0.443; }
+  22% { opacity: 0.642; }
+  32% { opacity: 0.817; }
+  45% { opacity: 0.929; }
+  62% { opacity: 0.983; }
+  80% { opacity: 0.998; }
+  100% { opacity: 1; }
+}
+
+/* The opening of a photo along the ease-out curve of the site: the frame grows (disc: all round,
+   from a third of its size; band: in height, from 4 %), the picture grows back by the inverse amount
+   and settles from 1.12 to 1. The keyframes are close enough (the frame grows by at most 12 % from
+   one to the next) that, linear between them, the picture never seems to move. */
+@keyframes aperture-disc {
+  0% { scale: 0.32; }
+  1.26% { scale: 0.3585; }
+  2.71% { scale: 0.4014; }
+  4.4% { scale: 0.4496; }
+  6.39% { scale: 0.5035; }
+  8.78% { scale: 0.5639; }
+  11.74% { scale: 0.6315; }
+  15.59% { scale: 0.7075; }
+  21.01% { scale: 0.7923; }
+  25.6% { scale: 0.8464; }
+  30.19% { scale: 0.8874; }
+  37.36% { scale: 0.9318; }
+  44.52% { scale: 0.9597; }
+  51.69% { scale: 0.9771; }
+  58.85% { scale: 0.9877; }
+  66.02% { scale: 0.9939; }
+  72.81% { scale: 0.9972; }
+  79.61% { scale: 0.9989; }
+  86.41% { scale: 0.9997; }
+  93.2% { scale: 1; }
+  100% { scale: 1; }
+}
+
+@keyframes aperture-disc-picture {
+  0% { scale: 3.5; }
+  1.26% { scale: 3.1056; }
+  2.71% { scale: 2.7542; }
+  4.4% { scale: 2.44; }
+  6.39% { scale: 2.1599; }
+  8.78% { scale: 1.9099; }
+  11.74% { scale: 1.6864; }
+  15.59% { scale: 1.4864; }
+  21.01% { scale: 1.3085; }
+  25.6% { scale: 1.2135; }
+  30.19% { scale: 1.1493; }
+  37.36% { scale: 1.0861; }
+  44.52% { scale: 1.0494; }
+  51.69% { scale: 1.0276; }
+  58.85% { scale: 1.0147; }
+  66.02% { scale: 1.0073; }
+  72.81% { scale: 1.0033; }
+  79.61% { scale: 1.0013; }
+  86.41% { scale: 1.0003; }
+  93.2% { scale: 1; }
+  100% { scale: 1; }
+}
+
+@keyframes aperture-band {
+  0% { scale: 1 0.04; }
+  0.11% { scale: 1 0.0448; }
+  0.23% { scale: 1 0.05; }
+  0.37% { scale: 1 0.0561; }
+  0.53% { scale: 1 0.063; }
+  0.7% { scale: 1 0.0703; }
+  0.9% { scale: 1 0.0789; }
+  1.12% { scale: 1 0.0883; }
+  1.37% { scale: 1 0.099; }
+  1.65% { scale: 1 0.1108; }
+  1.97% { scale: 1 0.1243; }
+  2.33% { scale: 1 0.1393; }
+  2.73% { scale: 1 0.1558; }
+  3.19% { scale: 1 0.1746; }
+  3.71% { scale: 1 0.1956; }
+  4.3% { scale: 1 0.2191; }
+  4.97% { scale: 1 0.2453; }
+  5.74% { scale: 1 0.2748; }
+  6.62% { scale: 1 0.3076; }
+  7.64% { scale: 1 0.3446; }
+  8.82% { scale: 1 0.3857; }
+  10.22% { scale: 1 0.4322; }
+  11.88% { scale: 1 0.4841; }
+  13.89% { scale: 1 0.5421; }
+  16.4% { scale: 1 0.6072; }
+  19.65% { scale: 1 0.6799; }
+  24.18% { scale: 1 0.7617; }
+  31.33% { scale: 1 0.853; }
+  36.77% { scale: 1 0.8996; }
+  42.21% { scale: 1 0.9324; }
+  47.66% { scale: 1 0.9554; }
+  55.13% { scale: 1 0.9758; }
+  62.61% { scale: 1 0.9878; }
+  70.09% { scale: 1 0.9945; }
+  77.57% { scale: 1 0.9979; }
+  85.04% { scale: 1 0.9994; }
+  92.52% { scale: 1 0.9999; }
+  100% { scale: 1 1; }
+}
+
+@keyframes aperture-band-picture {
+  0% { scale: 1.12 28; }
+  0.11% { scale: 1.1194 24.9895; }
+  0.23% { scale: 1.1187 22.3687; }
+  0.37% { scale: 1.118 19.933; }
+  0.53% { scale: 1.1171 17.73; }
+  0.7% { scale: 1.1162 15.8697; }
+  0.9% { scale: 1.1151 14.1291; }
+  1.12% { scale: 1.114 12.6112; }
+  1.37% { scale: 1.1126 11.2425; }
+  1.65% { scale: 1.1111 10.0276; }
+  1.97% { scale: 1.1095 8.929; }
+  2.33% { scale: 1.1076 7.9533; }
+  2.73% { scale: 1.1055 7.0964; }
+  3.19% { scale: 1.1032 6.3185; }
+  3.71% { scale: 1.1006 5.6268; }
+  4.3% { scale: 1.0976 5.0104; }
+  4.97% { scale: 1.0943 4.4618; }
+  5.74% { scale: 1.0907 3.9695; }
+  6.62% { scale: 1.0865 3.5321; }
+  7.64% { scale: 1.0819 3.1401; }
+  8.82% { scale: 1.0768 2.7919; }
+  10.22% { scale: 1.071 2.478; }
+  11.88% { scale: 1.0645 2.1991; }
+  13.89% { scale: 1.0572 1.9504; }
+  16.4% { scale: 1.0491 1.7278; }
+  19.65% { scale: 1.04 1.5296; }
+  24.18% { scale: 1.0298 1.352; }
+  31.33% { scale: 1.0184 1.1939; }
+  36.77% { scale: 1.0126 1.1256; }
+  42.21% { scale: 1.0084 1.0816; }
+  47.66% { scale: 1.0056 1.0526; }
+  55.13% { scale: 1.003 1.0279; }
+  62.61% { scale: 1.0015 1.0139; }
+  70.09% { scale: 1.0007 1.0062; }
+  77.57% { scale: 1.0003 1.0023; }
+  85.04% { scale: 1.0001 1.0006; }
+  92.52% { scale: 1 1.0001; }
+  100% { scale: 1 1; }
 }
 
 /* ---------- Motion: what comes on screen moves into place by itself, once ---------- */
@@ -13539,9 +14391,48 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 }
 
 /* Long texts that open a section come line by line (motion.js, with SplitText): each line rises
-   from behind its own edge. The words stay readable for screen readers (SplitText labels them). */
+   from behind its own edge, 50 ms after the previous one, then what follows the text (a button)
+   comes up. The words stay readable for screen readers (SplitText labels them). Cut into lines a
+   little before it reaches the screen, the text waits hidden until then. */
 .text-lines-mask {
   padding-bottom: 0.06em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .js .lines__text:not(.is-cut) {
+    visibility: hidden;
+  }
+
+  .js .lines__text .text-lines {
+    transform: translateY(110%);
+  }
+
+  .js .lines.is-rising .lines__text .text-lines {
+    animation: line-rise 0.6s var(--ease-out) both;
+    animation-delay: calc((var(--line, 1) - 1) * 50ms);
+  }
+
+  .js .lines__other {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  .js .lines.is-rising .lines__other {
+    animation: line-other-in 0.5s var(--ease-out) 0.15s both;
+  }
+}
+
+@keyframes line-rise {
+  to {
+    transform: none;
+  }
+}
+
+@keyframes line-other-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- Cross-page transitions ---------- */
@@ -13693,8 +14584,10 @@ main[data-patho="dmla"] .page-head .page-title,
 .glasses-hero .drawing {
   --drawing-color: var(--c-blue);
   --drawing-opacity: 0.1;
-  --drawing-pos: 0% 100%;
-  --drawing-size: auto 115%;
+  /* 1.15 times the height of the head, in its bottom left corner. */
+  --drawing-w: 184cqh;
+  --drawing-x: 0;
+  --drawing-y: 1;
 }
 
 .glasses-hero__grid {

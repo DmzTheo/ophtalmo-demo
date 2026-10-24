@@ -8,12 +8,9 @@
   }
   gsap.registerPlugin(SplitText);
 
-  // The two curves of the site (site.css): --ease-out is a quint ease-out, --ease-in-out a cubic.
-  const EASE_OUT = 'power4.out';
-
-  // Plays the callback once, the first time the element is well inside the screen.
+  // Plays the callback once, the first time the element comes within the margin of the screen.
   const onEnter = (element, callback, rootMargin = '0px 0px -10% 0px') => {
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new ViewWatcher((entries) => {
       if (entries[0].isIntersecting) {
         observer.disconnect();
         callback();
@@ -23,11 +20,13 @@
   };
 
   // ---------- Opening texts of the sections, line by line ----------
-  // Each line rises from behind its own edge, 80 ms after the previous one; the text is put back as
-  // it was once arrived (so that enlarging the text later reflows it normally). Texts already on
-  // screen when the page opens keep their simple reveal (site.css).
+  // Each line rises from behind its own edge, 50 ms after the previous one, moved by the screen
+  // alone (CSS animations, site.css: a tween of the script was redrawn by the page at every frame).
+  // The text is cut into lines a little before it reaches the screen (measuring the lines is costly:
+  // it is done out of sight), its lines rise as it reaches the screen, and it is put back as it was
+  // once arrived (so that enlarging the text later reflows it normally). Texts already on screen when
+  // the page opens keep their simple reveal (site.css).
   const LINE_TEXTS = '.giant-head__lead, .section-head__lead';
-  const LINE_STAGGER = 0.08;
 
   const revealLines = (block) => {
     const text = block.matches('p') ? block : block.querySelector('p');
@@ -35,29 +34,34 @@
       return;
     }
     const others = [...block.children].filter((child) => child !== text);
-    const hasOthers = others.length > 0;
     block.removeAttribute('data-reveal');
-    gsap.set(text, { autoAlpha: 0 });
-    if (hasOthers) {
-      gsap.set(others, { autoAlpha: 0, y: 16 });
-    }
+    block.classList.add('lines');
+    text.classList.add('lines__text');
+    others.forEach((other) => other.classList.add('lines__other'));
+    let split = null;
+    const cut = () => {
+      if (!split) {
+        split = SplitText.create(text, { type: 'lines', mask: 'lines', linesClass: 'text-lines', propIndex: true });
+        text.classList.add('is-cut');
+      }
+    };
+    onEnter(block, cut, '0px 0px 30% 0px');
     onEnter(block, () => {
-      SplitText.create(text, {
-        type: 'lines',
-        mask: 'lines',
-        linesClass: 'text-lines',
-        onSplit(split) {
-          gsap.set(text, { autoAlpha: 1 });
-          const timeline = gsap.timeline({ onComplete: () => split.revert() });
-          timeline.from(split.lines, { yPercent: 110, duration: 0.9, ease: EASE_OUT, stagger: LINE_STAGGER });
-          if (hasOthers) {
-            timeline.to(others, { autoAlpha: 1, y: 0, duration: 0.7, ease: EASE_OUT, clearProps: 'transform' }, '-=0.5');
+      cut();
+      let risen = 0;
+      const arrive = (event) => {
+        if (event.animationName === 'line-rise') {
+          risen += 1;
+          if (risen === split.lines.length) {
+            split.revert();
           }
-          // Not returned to SplitText: its revert at the end would also revert the timeline, and
-          // hide again what follows the text (a button).
-        },
-      });
-    });
+        } else if (event.animationName === 'line-other-in') {
+          event.target.classList.remove('lines__other');
+        }
+      };
+      block.addEventListener('animationend', arrive);
+      block.classList.add('is-rising');
+    }, '0px 0px 4% 0px');
   };
 
   // ---------- Buttons that lean towards the mouse ----------

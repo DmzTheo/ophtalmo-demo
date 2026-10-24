@@ -6,6 +6,9 @@
 // bends around the pointer as seen through a magnifying lens. A click on the eye fires a flash, as a
 // fundus camera does: the pupil closes at once. Scrolling down, the eye comes closer and the dust
 // flies past, as if one went into the pupil. A button pauses it all.
+// Drawn in two passes, so that a modest phone keeps up: the room and the iris (one pass over the
+// screen), then the specks of dust as small points (a few hundred, instead of working out the dust at
+// every pixel).
 // WebGL only; without it, or with reduced motion, the pre-rendered poster stays in place.
 (() => {
   const stage = document.querySelector('[data-iris]');
@@ -27,6 +30,7 @@
   }
   const hasDerivatives = Boolean(gl.getExtension('OES_standard_derivatives'));
 
+  // ---------- The room and the iris ----------
   const VERTEX = `
     attribute vec2 aPos;
     void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
@@ -48,42 +52,12 @@
     uniform vec4 uDrawBox;
     uniform vec2 uMouse;
     uniform float uMouseOn;
-    uniform float uTime;
-    uniform float uDpr;
     uniform float uZoom;
     uniform float uFlash;
 
     const float TAU = 6.2831853;
 
     float luma(vec3 c) { return dot(c, vec3(0.3, 0.59, 0.11)); }
-
-    float hash(vec2 p) {
-      p = fract(p * vec2(123.34, 456.21));
-      p += dot(p, p + 45.32);
-      return fract(p.x * p.y);
-    }
-
-    // One layer of dust: about one mote in two cells, drifting slowly around its place, pushed away by
-    // the pointer. The four cells around the pixel are looked at, so a mote never shows cut.
-    float dust(vec2 frag, float cell, float size, float speed, float seed) {
-      vec2 base = floor(frag / cell - 0.5);
-      float light = 0.0;
-      for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 2; j++) {
-          vec2 id = base + vec2(float(i), float(j));
-          float a = hash(id + seed);
-          float b = hash(id + seed + 17.17);
-          vec2 drift = vec2(sin(uTime * speed + a * TAU), cos(uTime * speed * 0.8 + b * TAU)) * 0.3;
-          vec2 pos = (id + 0.5 + (vec2(a, b) - 0.5) * 0.5 + drift) * cell;
-          vec2 away = pos - uMouse;
-          float push = exp(-dot(away, away) / (cell * cell * 3.0)) * uMouseOn;
-          pos += normalize(away + 0.001) * push * cell * 0.9;
-          float twinkle = 0.55 + 0.45 * sin(uTime * (1.3 + a * 2.0) + b * 40.0);
-          light += step(0.5, b) * twinkle * smoothstep(size, 0.0, length(frag - pos));
-        }
-      }
-      return light;
-    }
 
     void main() {
       vec2 frag = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
@@ -148,25 +122,13 @@
       float k = clamp(mouseDistance / lensR, 0.0, 1.0);
       float bend = (1.0 - smoothstep(0.55, 1.0, k)) * uMouseOn;
       vec2 seen = uMouse + toMouse * mix(1.0, 0.6 + 0.4 * k * k, bend);
-      // Coming closer: the drawing and the dust are read nearer the centre of the eye.
+      // Coming closer: the drawing is read nearer the centre of the eye.
       seen = uCenter + (seen - uCenter) / uZoom;
       vec2 duv = (seen - uDrawBox.xy) / uDrawBox.zw;
       float inBox = step(0.0, duv.x) * step(duv.x, 1.0) * step(0.0, duv.y) * step(duv.y, 1.0);
       float ink = texture2D(uDraw, duv).a * inBox * uDrawOn;
       float outOfEye = smoothstep(1.087, 1.348, r);
       col += vec3(0.42, 0.55, 0.78) * ink * outOfEye * (0.09 + 0.5 * halo);
-
-      // Dust: three depths in focus, bright in the beam and in the light spilled around it, barely
-      // there elsewhere; and a few large motes close to the lens, out of focus (soft discs).
-      vec2 near = uCenter + (frag - uCenter) / uZoom;
-      float motes = dust(near, 64.0 * uDpr, 1.9 * uDpr, 0.21, 3.1) * 1.0
-        + dust(near, 108.0 * uDpr, 2.7 * uDpr, 0.15, 11.7) * 0.8
-        + dust(near, 176.0 * uDpr, 3.8 * uDpr, 0.1, 29.3) * 0.55;
-      float blurred = dust(near, 300.0 * uDpr, 11.0 * uDpr, 0.06, 47.9) * 0.22;
-      // The dust shines in the beam, and around the pointer wherever it goes over the head.
-      float aroundPointer = exp(-dot(toMouse, toMouse) / pow(uRadius * 0.5, 2.0)) * uMouseOn;
-      float lit = 0.05 + 1.5 * halo * halo + 0.4 * spill * spill + 1.9 * aroundPointer;
-      col += vec3(0.95, 0.9, 0.8) * (motes + blurred) * lit;
 
       // Highlights roll off instead of clipping.
       col = 1.0 - exp(-col * 1.25);
@@ -200,72 +162,185 @@
     }
   `;
 
+  // ---------- The dust, as points ----------
+  // Each speck has its place in a grid (a cell, a random offset); it drifts around it, is pushed away
+  // by the pointer, twinkles, and shines in the beam and around the pointer, faintly elsewhere. When
+  // the eye comes closer, the dust is spread and enlarged with it. It is added to the picture as light
+  // through the same roll-off (screen blending).
+  const DUST_VERTEX = `
+    attribute vec2 aCell;
+    attribute vec2 aRand;
+    attribute vec4 aLayer;
+    uniform vec2 uRes;
+    uniform vec2 uCenter;
+    uniform float uRadius;
+    uniform float uDpr;
+    uniform float uTime;
+    uniform float uZoom;
+    uniform vec2 uMouse;
+    uniform float uMouseOn;
+    uniform float uBeamX;
+    uniform float uBeamW;
+    uniform float uBeam;
+    uniform float uFlash;
+    varying float vLight;
+    varying float vRadius;
+
+    const float TAU = 6.2831853;
+
+    void main() {
+      float cell = aLayer.x * uDpr;
+      float size = aLayer.y * uDpr;
+      float speed = aLayer.z;
+      vec2 drift = vec2(sin(uTime * speed + aRand.x * TAU), cos(uTime * speed * 0.8 + aRand.y * TAU)) * 0.3;
+      vec2 pos = (aCell + 0.5 + (aRand - 0.5) * 0.5 + drift) * cell;
+      vec2 away = pos - uMouse;
+      float push = exp(-dot(away, away) / (cell * cell * 3.0)) * uMouseOn;
+      pos += normalize(away + 0.001) * push * cell * 0.9;
+      float twinkle = 0.55 + 0.45 * sin(uTime * (1.3 + aRand.x * 2.0) + aRand.y * 40.0);
+      vec2 screen = uCenter + (pos - uCenter) * uZoom;
+      float bx = abs(screen.x - uBeamX) / uBeamW;
+      float halo = exp(-bx * bx * 0.045) * uBeam;
+      float spill = exp(-bx * bx * 0.012) * uBeam;
+      vec2 toMouse = screen - uMouse;
+      float around = exp(-dot(toMouse, toMouse) / pow(uRadius * 0.5, 2.0)) * uMouseOn;
+      float lit = 0.05 + 1.5 * halo * halo + 0.4 * spill * spill + 1.9 * around;
+      vec2 q = screen / uRes - 0.5;
+      vLight = aLayer.w * twinkle * lit * (1.0 - dot(q, q) * 0.55) * (1.0 - uFlash * 0.82);
+      vRadius = size * uZoom;
+      gl_PointSize = 2.0 * vRadius + 2.0;
+      gl_Position = vec4(screen.x / uRes.x * 2.0 - 1.0, 1.0 - screen.y / uRes.y * 2.0, 0.0, 1.0);
+    }
+  `;
+  const DUST_FRAGMENT = `
+    precision mediump float;
+    varying float vLight;
+    varying float vRadius;
+
+    void main() {
+      float distance = length(gl_PointCoord - 0.5) * (2.0 * vRadius + 2.0);
+      vec3 light = vec3(0.95, 0.9, 0.8) * vLight * (1.0 - smoothstep(0.0, vRadius, distance));
+      gl_FragColor = vec4(1.0 - exp(-light * 1.25), 1.0);
+    }
+  `;
+  // The four layers of dust: three depths in focus, and a few large motes close to the lens, out of
+  // focus (soft discs). Cell and size in points.
+  const DUST_LAYERS = [
+    { cell: 64, size: 1.9, speed: 0.21, seed: 3.1, weight: 1 },
+    { cell: 108, size: 2.7, speed: 0.15, seed: 11.7, weight: 0.8 },
+    { cell: 176, size: 3.8, speed: 0.1, seed: 29.3, weight: 0.55 },
+    { cell: 300, size: 11, speed: 0.06, seed: 47.9, weight: 0.22 },
+  ];
+
   const compile = (type, source) => {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      throw new Error(gl.getShaderInfoLog(shader));
-    }
     return shader;
   };
+  // Attribute slots are fixed: 0 for the screen pass, 1 to 3 for the dust. The programs are only
+  // checked once the iris is loaded: meanwhile the browser compiles them on the side and the page
+  // goes on loading (checked at once, the page waited 65 to 115 ms for them).
+  const link = (vertex, fragment, attributes) => {
+    const linked = gl.createProgram();
+    gl.attachShader(linked, compile(gl.VERTEX_SHADER, vertex));
+    gl.attachShader(linked, compile(gl.FRAGMENT_SHADER, fragment));
+    attributes.forEach((name, index) => gl.bindAttribLocation(linked, index, name));
+    gl.linkProgram(linked);
+    return linked;
+  };
+  const program = link(VERTEX, FRAGMENT, ['aPos']);
+  const dustProgram = link(DUST_VERTEX, DUST_FRAGMENT, ['aUnused', 'aCell', 'aRand', 'aLayer']);
+  // (Sent at once: Firefox otherwise keeps them until they are asked for, and compiles them then.)
+  gl.flush();
+  const linkedAt = performance.now();
+  // Where the browser can tell whether they are compiled yet (Chrome, Edge), they are asked for only
+  // when they are (each question waits for the graphics process: asked once the iris is there);
+  // elsewhere (Firefox), a quarter of a second after they were given, time enough to compile them.
+  const parallel = gl.getExtension('KHR_parallel_shader_compile');
+  const whenCompiled = () => new Promise((resolve) => {
+    const check = () => {
+      const isDone = parallel
+        ? [program, dustProgram].every((linked) => gl.getProgramParameter(linked, parallel.COMPLETION_STATUS_KHR))
+        : performance.now() - linkedAt > 250;
+      if (isDone) {
+        resolve();
+      } else {
+        window.setTimeout(check, 50);
+      }
+    };
+    check();
+  });
 
-  let program;
-  try {
-    program = gl.createProgram();
-    gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX));
-    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      throw new Error(gl.getProgramInfoLog(program));
-    }
-  } catch (error) {
-    return;
-  }
-  gl.useProgram(program);
-
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  const quad = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(program, 'aPos');
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  const dustBuffer = gl.createBuffer();
+  let dustCount = 0;
 
-  const uniform = (name) => gl.getUniformLocation(program, name);
-  const U = {
-    res: uniform('uRes'),
-    center: uniform('uCenter'),
-    radius: uniform('uRadius'),
-    pupil: uniform('uPupil'),
-    beamX: uniform('uBeamX'),
-    beamW: uniform('uBeamW'),
-    beam: uniform('uBeam'),
-    tilt: uniform('uTilt'),
-    bg: uniform('uBg'),
-    draw: uniform('uDraw'),
-    drawOn: uniform('uDrawOn'),
-    drawBox: uniform('uDrawBox'),
-    mouse: uniform('uMouse'),
-    mouseOn: uniform('uMouseOn'),
-    time: uniform('uTime'),
-    dpr: uniform('uDpr'),
-    zoom: uniform('uZoom'),
-    flash: uniform('uFlash'),
+  const uniforms = (linked, names) => Object.fromEntries(names.map((name) => [name, gl.getUniformLocation(linked, `u${name[0].toUpperCase()}${name.slice(1)}`)]));
+  let U = null;
+  let D = null;
+  // A program that does not compile (an old graphics chip) leaves the poster in place.
+  const prepare = () => {
+    if (![program, dustProgram].every((linked) => gl.getProgramParameter(linked, gl.LINK_STATUS))) {
+      return false;
+    }
+    U = uniforms(program, ['res', 'center', 'radius', 'pupil', 'beamX', 'beamW', 'beam', 'tilt', 'bg', 'draw', 'drawOn', 'drawBox', 'mouse', 'mouseOn', 'zoom', 'flash', 'iris']);
+    D = uniforms(dustProgram, ['res', 'center', 'radius', 'dpr', 'time', 'zoom', 'mouse', 'mouseOn', 'beamX', 'beamW', 'beam', 'flash']);
+    gl.useProgram(program);
+    gl.uniform1i(U.iris, 0);
+    gl.uniform1f(U.drawOn, 0);
+    return true;
   };
 
   // ---------- Quality ----------
-  // The iris is drawn at the resolution of the screen, at most 1.75 pixel per point. When the frames
-  // come too slowly (a modest graphics chip, an old computer), it is drawn a step less finely, so that
-  // the page stays fluid; it goes back up when there is room again, never above a step found too slow.
+  // The iris is drawn at each refresh of the screen, at most 1.75 pixel per point (phones start at
+  // 1.5). When the frames come later than the screen asks for them (a modest graphics chip, an old
+  // computer), it is drawn a step less finely, so that it stays fluid; it goes back up when there is
+  // room again, never above a step found too slow. (Drawn only at every other refresh of a 120 Hz
+  // screen, its frames came unevenly in Firefox: a frame early, the next one late.)
+  const isTouch = window.matchMedia('(hover: none)').matches;
   const MAX_SCALE = Math.min(window.devicePixelRatio || 1, 1.75);
   const MIN_SCALE = Math.min(MAX_SCALE, Math.max(0.75, MAX_SCALE / 2));
-  const SLOW_FRAME = 24;
-  const QUIET_FRAME = 18;
+  const START_SCALE = isTouch ? Math.min(MAX_SCALE, 1.5) : MAX_SCALE;
   const WINDOW = 60;
-  const quality = { scale: MAX_SCALE, ceiling: MAX_SCALE, frames: 0, slow: 0, quiet: 0, easyWindows: 0, settleUntil: 0 };
+  const quality = { scale: START_SCALE, ceiling: MAX_SCALE, intervals: [], shortest: [], easyWindows: 0, settleUntil: 0 };
 
   // ---------- Geometry ----------
   const geometry = { width: 0, height: 0, dpr: 1, cx: 0, cy: 0, radius: 0, drawBox: [0, 0, 1, 1], heroHeight: 1 };
+
+  // The dust of the whole canvas, cell by cell (the same pseudo-random field as before, made once).
+  const fract = (x) => x - Math.floor(x);
+  const hash = (x, y) => {
+    let px = fract(x * 123.34);
+    let py = fract(y * 456.21);
+    const dot = px * (px + 45.32) + py * (py + 45.32);
+    px += dot;
+    py += dot;
+    return fract(px * py);
+  };
+  const buildDust = () => {
+    const data = [];
+    DUST_LAYERS.forEach(({ cell, size, speed, seed, weight }) => {
+      const step = cell * geometry.dpr;
+      const columns = Math.ceil(geometry.width / step) + 1;
+      const rows = Math.ceil(geometry.height / step) + 1;
+      for (let j = -1; j <= rows; j += 1) {
+        for (let i = -1; i <= columns; i += 1) {
+          const b = hash(i + seed + 17.17, j + seed + 17.17);
+          // About one cell in two holds a speck.
+          if (b >= 0.5) {
+            data.push(i, j, hash(i + seed, j + seed), b, cell, size, speed, weight);
+          }
+        }
+      }
+    });
+    dustCount = data.length / 8;
+    gl.bindBuffer(gl.ARRAY_BUFFER, dustBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+  };
+
   const layout = () => {
     const rect = stage.getBoundingClientRect();
     geometry.dpr = quality.scale;
@@ -285,6 +360,7 @@
     const drawingWidth = box.width * 2.015 * geometry.dpr;
     geometry.drawBox = [geometry.cx - drawingWidth * 0.775, geometry.cy - drawingWidth * 0.3125, drawingWidth, drawingWidth * 0.625];
     gl.viewport(0, 0, geometry.width, geometry.height);
+    buildDust();
   };
 
   // Scrolling the hero away brings the eye closer: it grows, drifts toward the middle and rises more
@@ -356,12 +432,23 @@
   image.src = stage.dataset.iris;
 
   // ---------- Background drawing ----------
+  // Handed to the graphics chip once the programs are ready; the CSS drawing gives way only once the
+  // canvas shows it.
   const drawTexture = gl.createTexture();
-  gl.uniform1f(U.drawOn, 0);
   const drawingImage = new Image();
   drawingImage.decoding = 'async';
   drawingImage.src = stage.dataset.drawing || '';
-  drawingImage.addEventListener('load', () => {
+  const drawingLoaded = new Promise((resolve) => {
+    drawingImage.addEventListener('load', resolve, { once: true });
+  });
+  let isLive = false;
+  let isDrawingUp = false;
+  const revealDrawing = () => {
+    if (isLive && isDrawingUp) {
+      drawingLayer?.classList.add('is-drawn-by-webgl');
+    }
+  };
+  const uploadDrawing = () => {
     const raster = document.createElement('canvas');
     raster.width = 2048;
     raster.height = 1280;
@@ -375,13 +462,15 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.activeTexture(gl.TEXTURE0);
+    gl.useProgram(program);
     gl.uniform1i(U.draw, 1);
     gl.uniform1f(U.drawOn, 1);
-    drawingLayer?.classList.add('is-drawn-by-webgl');
+    isDrawingUp = true;
+    revealDrawing();
     if (reduceMotion && isReady) {
       renderStill();
     }
-  });
+  };
 
   // ---------- Pupillometer ----------
   const traceContext = trace ? trace.getContext('2d') : null;
@@ -425,6 +514,55 @@
     ctx.stroke();
   };
 
+  // ---------- Drawing ----------
+  const draw = (now, values) => {
+    // The room and the iris.
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    [1, 2, 3].forEach((slot) => gl.disableVertexAttribArray(slot));
+    gl.uniform2f(U.res, geometry.width, geometry.height);
+    gl.uniform2f(U.center, values.cx, values.cy);
+    gl.uniform1f(U.radius, values.radius);
+    gl.uniform1f(U.pupil, values.pupil);
+    gl.uniform1f(U.beamX, values.beamX);
+    gl.uniform1f(U.beamW, values.radius * 0.07);
+    gl.uniform1f(U.beam, values.beam);
+    gl.uniform2f(U.tilt, values.tiltX, values.tiltY);
+    gl.uniform4f(U.drawBox, ...geometry.drawBox);
+    gl.uniform2f(U.mouse, state.mouseX, state.mouseY);
+    gl.uniform1f(U.mouseOn, state.mouseOn);
+    gl.uniform1f(U.zoom, view.zoom);
+    gl.uniform1f(U.flash, state.flash);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // The dust.
+    gl.useProgram(dustProgram);
+    gl.disableVertexAttribArray(0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, dustBuffer);
+    [[1, 2, 0], [2, 2, 8], [3, 4, 16]].forEach(([slot, size, offset]) => {
+      gl.enableVertexAttribArray(slot);
+      gl.vertexAttribPointer(slot, size, gl.FLOAT, false, 32, offset);
+    });
+    gl.uniform2f(D.res, geometry.width, geometry.height);
+    gl.uniform2f(D.center, values.cx, values.cy);
+    gl.uniform1f(D.radius, values.radius);
+    gl.uniform1f(D.dpr, geometry.dpr);
+    gl.uniform1f(D.time, now - startedAt);
+    gl.uniform1f(D.zoom, view.zoom);
+    gl.uniform2f(D.mouse, state.mouseX, state.mouseY);
+    gl.uniform1f(D.mouseOn, state.mouseOn);
+    gl.uniform1f(D.beamX, values.beamX);
+    gl.uniform1f(D.beamW, values.radius * 0.07);
+    gl.uniform1f(D.beam, values.beam);
+    gl.uniform1f(D.flash, state.flash);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE_MINUS_DST_COLOR, gl.ONE);
+    gl.drawArrays(gl.POINTS, 0, dustCount);
+    gl.disable(gl.BLEND);
+  };
+
   // ---------- Loop ----------
   let last = performance.now() / 1000;
   let isReady = false;
@@ -435,9 +573,16 @@
   let isAway = false;
   const blursAway = window.matchMedia('(min-width: 861px)');
   let lastReadout = 0;
+  let lastTrace = 0;
   const startedAt = last;
   quality.settleUntil = startedAt + 1.5;
   const isResting = () => !isVisible || document.hidden || state.isPaused || (isAway && blursAway.matches);
+  const warm = { frames: 0, steady: 0, since: 0 };
+  const goLive = () => {
+    isLive = true;
+    stage.classList.add('is-live');
+    revealDrawing();
+  };
 
   const rescale = (scale) => {
     const ratio = scale / quality.scale;
@@ -448,24 +593,31 @@
     state.mouseY *= ratio;
     layout();
   };
-  // About every second, the frames are counted: too many late ones and the iris is drawn a step less
-  // finely; several quiet seconds in a row and it is drawn finer again.
+  // About every second (WINDOW frames), the frames are looked at, once the page has loaded (until
+  // then its own work holds them up). The refresh of the screen is the shortest time between frames
+  // over the last few seconds (a phone changes it by itself, lower when nothing is touched), read on
+  // the quickest tenth of each second rather than on its single shortest time: a browser now and then
+  // gives two frames closer together (Firefox on a computer: one in a few hundred), and such a lone
+  // pair made every frame look late, the iris drawn coarser for nothing. Late: half again that time;
+  // a frame held more than six times as long is the page at work (a script, an image), not the iris
+  // drawn too finely, and does not count. Too many late frames and the iris is drawn a step less
+  // finely; five quiet seconds in a row and it is drawn finer again.
   const adapt = (interval, now) => {
-    if (now < quality.settleUntil) {
+    if (now < quality.settleUntil || document.readyState !== 'complete') {
       return;
     }
-    quality.frames += 1;
-    quality.slow += interval > SLOW_FRAME ? 1 : 0;
-    quality.quiet += interval < QUIET_FRAME ? 1 : 0;
-    if (quality.frames < WINDOW) {
+    quality.intervals.push(interval);
+    if (quality.intervals.length < WINDOW) {
       return;
     }
-    const isStruggling = quality.slow > WINDOW * 0.25;
-    const isEasy = quality.quiet > WINDOW * 0.95;
+    const sorted = [...quality.intervals].sort((a, b) => a - b);
+    quality.shortest = [...quality.shortest.slice(-4), Math.max(4, sorted[Math.floor(WINDOW / 10)])];
+    const refresh = Math.min(...quality.shortest);
+    const late = quality.intervals.filter((each) => each > refresh * 1.45 && each < refresh * 6).length;
+    quality.intervals = [];
+    const isStruggling = late > WINDOW * 0.2;
+    const isEasy = late < WINDOW * 0.03;
     quality.easyWindows = isEasy ? quality.easyWindows + 1 : 0;
-    quality.frames = 0;
-    quality.slow = 0;
-    quality.quiet = 0;
     if (isStruggling && quality.scale > MIN_SCALE) {
       quality.ceiling = Math.max(MIN_SCALE, quality.scale * 0.92);
       rescale(Math.max(MIN_SCALE, quality.scale * 0.8));
@@ -477,24 +629,15 @@
     }
   };
 
-  const sendCommon = (now) => {
-    gl.uniform1f(U.time, now - startedAt);
-    gl.uniform1f(U.dpr, geometry.dpr);
-    gl.uniform4f(U.drawBox, ...geometry.drawBox);
-    gl.uniform2f(U.mouse, state.mouseX, state.mouseY);
-    gl.uniform1f(U.mouseOn, state.mouseOn);
-    gl.uniform1f(U.zoom, view.zoom);
-    gl.uniform1f(U.flash, state.flash);
-  };
-
   const frame = () => {
     if (isResting()) {
       isRunning = false;
       return;
     }
     const now = performance.now() / 1000;
-    const dt = Math.min(0.05, now - last);
-    adapt((now - last) * 1000, now);
+    const interval = now - last;
+    const dt = Math.min(0.05, interval);
+    adapt(interval * 1000, now);
     last = now;
     updateView();
 
@@ -527,21 +670,25 @@
       state.samples.shift();
     }
 
-    gl.uniform2f(U.res, geometry.width, geometry.height);
-    gl.uniform2f(U.center, view.cx, view.cy);
-    gl.uniform1f(U.radius, view.radius);
-    gl.uniform1f(U.pupil, state.pupil);
-    gl.uniform1f(U.beamX, state.beamX);
-    gl.uniform1f(U.beamW, view.radius * 0.07);
-    gl.uniform1f(U.beam, state.beam);
-    gl.uniform2f(U.tilt, state.tiltX, state.tiltY);
-    sendCommon(now);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    draw(now, { cx: view.cx, cy: view.cy, radius: view.radius, pupil: state.pupil, beamX: state.beamX, beam: state.beam, tiltX: state.tiltX, tiltY: state.tiltY });
 
-    drawTrace(now);
+    // The trace and the figure of the pupillometer change slowly: drawn 30 and 8 times a second.
+    if (now - lastTrace > 0.032) {
+      drawTrace(now);
+      lastTrace = now;
+    }
     if (readout && now - lastReadout > 0.12) {
       readout.textContent = mm.toFixed(1).replace('.', ',');
       lastReadout = now;
+    }
+    // Warming up (see the start): the canvas shows once a few frames have come at the pace of the
+    // screen, or after a second whatever the page is doing.
+    if (!isLive) {
+      warm.frames += 1;
+      warm.steady = interval < 0.034 ? warm.steady + 1 : 0;
+      if ((warm.frames >= 8 && warm.steady >= 4) || now - warm.since > 1) {
+        goLive();
+      }
     }
     window.requestAnimationFrame(frame);
   };
@@ -551,6 +698,9 @@
     if (isReady && !reduceMotion && !isRunning && !isResting()) {
       isRunning = true;
       last = performance.now() / 1000;
+      if (!isLive) {
+        Object.assign(warm, { frames: 0, steady: 0, since: last });
+      }
       window.requestAnimationFrame(frame);
     }
   };
@@ -559,21 +709,35 @@
     layout();
     updateView();
     state.beamX = geometry.cx - geometry.radius * 1.4;
-    gl.uniform2f(U.res, geometry.width, geometry.height);
-    gl.uniform2f(U.center, geometry.cx, geometry.cy);
-    gl.uniform1f(U.radius, geometry.radius);
-    gl.uniform1f(U.pupil, 0.36);
-    gl.uniform1f(U.beamX, state.beamX);
-    gl.uniform1f(U.beamW, geometry.radius * 0.07);
-    gl.uniform1f(U.beam, 0.7);
-    gl.uniform2f(U.tilt, 0, 0);
-    sendCommon(performance.now() / 1000);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    draw(startedAt, { cx: geometry.cx, cy: geometry.cy, radius: geometry.radius, pupil: 0.36, beamX: state.beamX, beam: 0.7, tiltX: 0, tiltY: 0 });
   };
 
-  image.addEventListener('load', () => {
+  // ---------- Start ----------
+  // The iris is decoded aside (decode, createImageBitmap) while the programs compile. Its first frames are
+  // then drawn while the canvas is still clear: the graphics chip readies its textures and programs
+  // meanwhile, a hitch the eye showed as it came in. The canvas fades in over the poster once frames
+  // come at the pace of the screen (the frame loop), the drawing as soon as both are ready.
+  const irisLoaded = new Promise((resolve, reject) => {
+    image.addEventListener('load', resolve, { once: true });
+    image.addEventListener('error', reject, { once: true });
+  });
+  const irisSource = irisLoaded
+    .then(() => (image.decode ? image.decode().catch(() => {}) : null))
+    .then(() => (window.createImageBitmap ? window.createImageBitmap(image).catch(() => image) : image));
+  const glReady = irisSource.then((source) => whenCompiled().then(() => source)).then((source) => {
+    if (!prepare()) {
+      throw new Error('The iris programs did not compile.');
+    }
+    return source;
+  });
+  Promise.all([drawingLoaded, glReady]).then(uploadDrawing, () => {});
+  glReady.then((source) => {
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, source);
+    if (source !== image) {
+      source.close();
+    }
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -581,16 +745,17 @@
     if (hasDerivatives) {
       gl.generateMipmap(gl.TEXTURE_2D);
     }
+    // Sharper fibres seen at a slant; phones keep it lighter.
     const anisotropic = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
     if (anisotropic) {
       const max = gl.getParameter(anisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-      gl.texParameterf(gl.TEXTURE_2D, anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, max));
+      gl.texParameterf(gl.TEXTURE_2D, anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(isTouch ? 4 : 8, max));
     }
     const hex = getComputedStyle(stage).getPropertyValue('--c-iris-bg').trim().replace('#', '') || '07101d';
     // Inverse of the shader's tone mapping, so that the background keeps its CSS colour.
     const channel = (index) => -Math.log(1 - parseInt(hex.slice(index * 2, index * 2 + 2), 16) / 255) / 1.25;
+    gl.useProgram(program);
     gl.uniform3f(U.bg, channel(0), channel(1), channel(2));
-    gl.uniform1i(gl.getUniformLocation(program, 'uIris'), 0);
     layout();
     state.beamX = geometry.cx - geometry.radius * 1.6;
     state.beamTarget = state.beamX;
@@ -598,11 +763,16 @@
 
     if (reduceMotion) {
       renderStill();
-      stage.classList.add('is-live');
+      goLive();
       return;
     }
-    stage.classList.add('is-live');
     start();
+  }).catch(() => {
+    // No iris (no image, or programs the graphics chip refuses): the poster stays, without a pause
+    // button that would pause nothing.
+    if (playButton) {
+      playButton.hidden = true;
+    }
   });
 
   // ---------- Interaction ----------
@@ -673,8 +843,8 @@
   } else {
     window.addEventListener('resize', remeasure);
   }
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([entry]) => {
+  if ('ViewWatcher' in window) {
+    new ViewWatcher(([entry]) => {
       isVisible = entry.isIntersecting;
       isAway = entry.intersectionRatio < 0.45 && entry.boundingClientRect.top < 0;
       start();
