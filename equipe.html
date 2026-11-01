@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}@view-transition{navigation:auto}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
   <title>Nos ophtalmologistes et leur équipe · Ophta Miramas La Crau</title>
   <meta name="description" content="Les docteurs Nadine Buzzacchera et Silvia Soare, ophtalmologistes, et toute leur équipe : secrétariat, orthoptistes et personnel soignant, dans nos cabinets de Miramas et de Salon-de-Provence.">
   <meta name="robots" content="noindex">
@@ -22,19 +23,83 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-icon-180x180.png">
   <link rel="manifest" href="assets/images/manifest.json">
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
+  <script>(function crossPage(darkHeads) {
+const KEY = 'ophta-vt';
+const root = document.documentElement;
+const TRAVELLERS = {
+op: '#ch-{}, main[data-op="{}"] .page-head .page-title, .lamp__item[href$="chirurgies/{}"] .lamp__name, .next-link[href$="{}"] .next-link__title',
+patho: '#plate-{}, main[data-patho="{}"] .page-head .page-title, .lamp__item[href$="pathologies/{}"] .lamp__name',
+};
+let named = [];
+const pathOf = (url) => new URL(url, location.href).pathname.replace(/\.html$/, '').replace(/\/index$/, '/');
+const nameFor = (path) => {
+const match = path.match(/^\/(chirurgies|details|pathologies)\/([a-z]+)$/);
+return match ? `${match[1] === 'pathologies' ? 'patho' : 'op'}-${match[2]}` : '';
+};
+const isSeen = (element) => {
+const box = element.getBoundingClientRect();
+return box.width > 0 && box.bottom > 0 && box.top < innerHeight;
+};
+const give = (name) => {
+const [kind, key] = name.split('-');
+const element = [...document.querySelectorAll(TRAVELLERS[kind].replaceAll('{}', key))].find(isSeen);
+if (element) {
+element.style.viewTransitionName = name;
+named.push(element);
+}
+return Boolean(element);
+};
+const takeBack = () => {
+named.forEach((element) => element.style.removeProperty('view-transition-name'));
+named = [];
+root.classList.remove('vt-solo');
+};
+addEventListener('pageswap', (event) => {
+takeBack();
+if (!event.viewTransition || !event.activation) {
+return;
+}
+const to = pathOf(event.activation.entry.url);
+const isFromMenu = root.classList.contains('is-menu-open');
+const isDark = root.dataset.hero === 'night' || (root.dataset.hero === 'dark' && !document.querySelector('.site-header.is-scrolled'));
+const isSolo = isFromMenu || isDark !== darkHeads.includes(to);
+const name = isFromMenu ? '' : nameFor(to);
+const names = name && give(name) ? [name] : [];
+root.classList.toggle('vt-solo', isSolo);
+try {
+sessionStorage.setItem(KEY, JSON.stringify({ to, names, isSolo }));
+} catch (error) {
+}
+});
+addEventListener('pagereveal', (event) => {
+takeBack();
+let told = null;
+try {
+told = JSON.parse(sessionStorage.getItem(KEY));
+sessionStorage.removeItem(KEY);
+} catch (error) {
+}
+if (!event.viewTransition || !told || told.to !== pathOf(location.href)) {
+return;
+}
+root.classList.toggle('vt-solo', told.isSolo);
+told.names.forEach(give);
+event.viewTransition.finished.finally(takeBack);
+});
+})(["/","/chirurgies"])</script>
   <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="assets/stylesheets/site.min.css">
-  <script src="assets/scripts/view.js" defer></script>
-  <script src="assets/scripts/pictures.js" defer></script>
-  <script src="assets/vendor/gsap/gsap.min.js" defer></script>
-  <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
-  <script src="assets/scripts/site.js" defer></script>
-  <script src="assets/scripts/motion.js" defer></script>
-  <script src="assets/scripts/drawing.js" defer></script>
-  <script src="assets/scripts/stars.js" defer></script>
-  <script type="module" src="assets/scripts/scene3d.js"></script>
+  <link rel="preload" href="assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/stylesheets/site.min.css?v=3ef8ec4d">
+  <script src="assets/scripts/view.js?v=ace5a464" defer></script>
+  <script src="assets/scripts/pictures.js?v=7db7783c" defer></script>
+  <script src="assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
+  <script src="assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
+  <script src="assets/scripts/site.js?v=01edfdd6" defer></script>
+  <script src="assets/scripts/motion.js?v=cd19337d" defer></script>
+  <script src="assets/scripts/drawing.js?v=dfcf8c14" defer></script>
+  <script src="assets/scripts/stars.js?v=8c24e288" defer></script>
+  <script type="module" src="assets/scripts/scene3d.js?v=9deb692d"></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -138,7 +203,7 @@
 
   <main id="contenu">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
       <div class="container page-head__grid page-head__grid--single">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -224,7 +289,7 @@
           </li>
         </ol>
         <figure class="team-photo" data-reveal>
-          <div class="drawing drawing--iris" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
+          <div class="drawing drawing--iris" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
           <div class="team-photo__inner">
             <span class="team-photo__icon"><svg class="icon icon--camera" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle pathLength="1" cx="12" cy="13" r="3"/></svg></span>
             <p class="team-photo__title">La photo de l'équipe arrive prochainement</p>
@@ -236,7 +301,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

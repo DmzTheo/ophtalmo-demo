@@ -58,16 +58,18 @@
   /* Alert as text: 5.2:1 on --c-alert-soft, 5.9:1 on the paper. */
   --c-alert-text: #9a3a20;
   --c-iris-bg: #07101d;
-  /* The four operations, on the night (9.7:1 or more on --c-night). */
+  /* The five operations, on the night (9.7:1 or more on --c-night). */
   --c-amber: #f0c27a;
   --c-violet: #c4b5fd;
   --c-rose: #f3a99c;
   --c-teal: #80d4d9;
-  /* The same four on the paper (5:1 or more on --c-paper, and white on them). */
+  --c-lime: #c8e07a;
+  /* The same five on the paper (5:1 or more on --c-paper, and white on them). */
   --c-amber-ink: #8a5a12;
   --c-violet-ink: #5b45b0;
   --c-rose-ink: #a8443a;
   --c-teal-ink: #1b666c;
+  --c-lime-ink: #4f6512;
   /* The four pathologies, on the night (9.5:1 or more) and on the paper (5:1 or more, white on them
      6:1 or more): jade for the glaucoma, raspberry for the diabetic retina, gold for the macula,
      plum for the detachment. */
@@ -4974,6 +4976,105 @@ html:not(.js) .schema__play {
   animation: schema-fade-in 0.9s 1.4s both;
 }
 
+/* ---------- Retinal surgery: openings, probe, light, laser, bubble of gas ---------- */
+/* The three openings come one after the other; the instruments slide in along their axis (--nx,
+   --ny, schemas.js) and stay; the gel of the vitreous fades as the probe takes it out; the laser
+   marks come one after the other; the bubble of gas rises into place. Each ends on the look of its
+   element (backwards). */
+.schema--retine .port-in,
+.schema--retine .laser-spot {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.schema.schema--retine.is-step-2:not(.is-step-3) .port-in {
+  animation: schema-pop 0.5s var(--ease-out) calc(0.3s + var(--i, 0) * 0.35s) backwards;
+}
+
+.schema.schema--retine.is-step-3:not(.is-step-4) .probe-in,
+.schema.schema--retine.is-step-5:not(.is-step-6) .fibre-in {
+  animation: retine-enter 0.9s var(--ease-out) 0.2s backwards;
+}
+
+.schema--retine .gel {
+  transition: opacity 0.4s var(--ease-out);
+}
+
+.schema.schema--retine.is-step-3 .gel {
+  opacity: 0;
+  transition: opacity 2.4s var(--ease-in-out) 0.6s;
+}
+
+.schema.schema--retine.is-step-5:not(.is-step-6) .laser-spot {
+  animation: schema-pop 0.35s var(--ease-out) calc(0.5s + var(--i, 0) * 0.16s) backwards;
+}
+
+.schema.schema--retine.is-step-6 .gas-in {
+  animation: retine-rise 1.4s var(--ease-out) 0.3s backwards;
+}
+
+@keyframes retine-enter {
+  from {
+    opacity: 0;
+    transform: translate(var(--nx, 0px), var(--ny, 0px));
+  }
+}
+
+@keyframes retine-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.schema__svg .gas {
+  fill: rgba(222, 236, 255, 0.16);
+  stroke: var(--schema-accent);
+  stroke-width: calc(1.2px * var(--stroke));
+}
+
+.schema__svg .meniscus {
+  fill: none;
+  stroke: var(--schema-accent);
+  stroke-width: calc(2.2px * var(--stroke));
+}
+
+.schema__svg .light-cone {
+  stroke: none;
+}
+
+.schema__svg .retina-back {
+  fill: none;
+  stroke-width: calc(2.6px * var(--stroke));
+  stroke-linecap: round;
+}
+
+.schema__svg .laser-spot {
+  fill: #fbecc0;
+  stroke: #7a2e16;
+  stroke-width: calc(1px * var(--stroke));
+}
+
+.schema__svg .detached-zone {
+  fill: rgba(214, 224, 238, 0.42);
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: calc(1px * var(--stroke));
+}
+
+/* The horseshoe tear seen from the front: its gap, dark, around the flap. */
+.schema__svg .tear-mark {
+  fill: none;
+  stroke: #5c170c;
+  stroke-width: calc(3.6px * var(--stroke));
+  stroke-linecap: round;
+}
+
+.schema__svg .tear-flap {
+  fill: #f0b48e;
+  stroke: #8a3a1a;
+  stroke-width: calc(0.8px * var(--stroke));
+}
+
 /* ---------- Surgery schemas: the place of each step, lit and framed ---------- */
 /* The focus of the step playing (schemas.js writes one per step): its centre from the centre of the
    drawing (--sNu, --sNv) and its radius (--sNr), in widths of the drawing. The target glides from
@@ -6281,6 +6382,11 @@ html:not(.js) .schema__play {
   --spot-light: var(--c-teal);
 }
 
+:is(.lamp__item[data-spot="vitrectomie"], .lamp__marker[data-marker="vitrectomie"], .lamp__label[data-label="vitrectomie"]) {
+  --spot-ink: var(--c-lime-ink);
+  --spot-light: var(--c-lime);
+}
+
 /* The pathologies of the inside of the eye in theirs (see the pathology pages). */
 :is(.lamp__item[data-spot="nerf"], .lamp__marker[data-marker="nerf"], .lamp__label[data-label="nerf"]) {
   --spot-ink: var(--c-jade-ink);
@@ -6567,12 +6673,12 @@ html:not(.js) .schema__play {
    (Each animated part is named: with any element on the right, every change of .is-alive restyled
    the whole drawing.) The parts of the drawing move by transform: Chrome moves the separate
    translate, rotate and scale of an SVG element on the main thread, at every frame. */
-.lamp__view:not(.is-alive) :is(.lamp__hippus, .lamp__halo, .lamp-pen, .lamp-zone, .lamp-shot, .lamp-scan, .lamp-fog, .lamp-iol, .lamp-needle, .lamp-ripple, .lamp-drop, .lamp-chevron, .lamp-signals, .lamp-disc-ring, .lamp-heartbeat__vessel, .lamp-pulses, .lamp-bleed, .lamp-druse, .lamp-bloom, .lamp-flash, .lamp-speck, .lamp-detach, .lamp-photon, .lamp-vision__line, .lamp-spark, .lamp-choroid-beat, .lamp-floater, .march__run, .march__in, .march__out, .march__dash) {
+.lamp__view:not(.is-alive) :is(.lamp__hippus, .lamp__halo, .lamp-pen, .lamp-zone, .lamp-shot, .lamp-scan, .lamp-fog, .lamp-iol, .lamp-needle, .lamp-ripple, .lamp-drop, .lamp-port, .lamp-endo, .lamp-chevron, .lamp-signals, .lamp-disc-ring, .lamp-heartbeat__vessel, .lamp-pulses, .lamp-bleed, .lamp-druse, .lamp-bloom, .lamp-flash, .lamp-speck, .lamp-detach, .lamp-photon, .lamp-vision__line, .lamp-spark, .lamp-choroid-beat, .lamp-floater, .march__run, .march__in, .march__out, .march__dash) {
   animation-play-state: paused !important;
 }
 
 /* Far from the screen (site.js), no animation at all: paused ones keep their layers. */
-.lamp__view.is-far :is(.lamp__hippus, .lamp__halo, .lamp-pen, .lamp-zone, .lamp-shot, .lamp-scan, .lamp-fog, .lamp-iol, .lamp-needle, .lamp-ripple, .lamp-drop, .lamp-chevron, .lamp-signals, .lamp-disc-ring, .lamp-heartbeat__vessel, .lamp-pulses, .lamp-bleed, .lamp-druse, .lamp-bloom, .lamp-flash, .lamp-speck, .lamp-detach, .lamp-photon, .lamp-vision__line, .lamp-spark, .lamp-choroid-beat, .lamp-floater, .march__run, .march__in, .march__out, .march__dash) {
+.lamp__view.is-far :is(.lamp__hippus, .lamp__halo, .lamp-pen, .lamp-zone, .lamp-shot, .lamp-scan, .lamp-fog, .lamp-iol, .lamp-needle, .lamp-ripple, .lamp-drop, .lamp-port, .lamp-endo, .lamp-chevron, .lamp-signals, .lamp-disc-ring, .lamp-heartbeat__vessel, .lamp-pulses, .lamp-bleed, .lamp-druse, .lamp-bloom, .lamp-flash, .lamp-speck, .lamp-detach, .lamp-photon, .lamp-vision__line, .lamp-spark, .lamp-choroid-beat, .lamp-floater, .march__run, .march__in, .march__out, .march__dash) {
   animation: none !important;
 }
 
@@ -6589,11 +6695,11 @@ html:not(.js) .schema__play {
   }
 }
 
-.lamp__svg :is(.lamp-zone, .lamp-ripples, .lamp-shots, .lamp-fog, .lamp-iol, .lamp-scan, .lamp-needle, .lamp-push, .lamp-drusen, .lamp-pulses, .lamp-bleeds, .lamp-detach, .lamp-signals, .lamp-disc-ring, .lamp-shower, .lamp-flash, .lamp-bloom) {
+.lamp__svg :is(.lamp-zone, .lamp-ripples, .lamp-ports, .lamp-endo, .lamp-shots, .lamp-fog, .lamp-iol, .lamp-scan, .lamp-needle, .lamp-push, .lamp-drusen, .lamp-pulses, .lamp-bleeds, .lamp-detach, .lamp-signals, .lamp-disc-ring, .lamp-shower, .lamp-flash, .lamp-bloom) {
   opacity: 0;
 }
 
-.lamp__svg :is(.lamp-shots circle, .lamp-scan, .lamp-ripples circle, .lamp-disc-ring, .lamp-bleeds circle, .lamp-drusen circle, .lamp-bloom) {
+.lamp__svg :is(.lamp-shots circle, .lamp-scan, .lamp-ripples circle, .lamp-ports circle, .lamp-disc-ring, .lamp-bleeds circle, .lamp-drusen circle, .lamp-bloom) {
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -6820,6 +6926,38 @@ html:not(.js) .schema__play {
 
 .lamp__figure[data-active="injection"] .lamp-ripples .lamp-drop {
   animation: lamp-drop 1.6s ease-out 0.9s backwards;
+}
+
+/* 5. Retinal surgery: the three openings come one after the other in the white of the eye, then the
+   light of the fibre shows in the pupil. */
+.lamp__svg .lamp-port {
+  fill: var(--c-lime);
+  stroke: #1d2a10;
+  stroke-width: 1.4;
+}
+
+.lamp__svg .lamp-endo {
+  fill: url(#lamp-endo);
+  stroke: none;
+}
+
+.lamp__figure[data-active="vitrectomie"] .lamp-ports {
+  opacity: 1;
+}
+
+.lamp__figure[data-active="vitrectomie"] .lamp-port {
+  animation: lamp-pop 0.6s var(--ease-out) calc(0.3s + var(--k) * 0.35s) backwards;
+}
+
+.lamp__figure[data-active="vitrectomie"] .lamp-endo {
+  opacity: 1;
+  animation: lamp-endo 1.4s ease-out 1.5s backwards;
+}
+
+@keyframes lamp-endo {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes lamp-needle {
@@ -8306,7 +8444,8 @@ html:not(.js) .schema__play {
   gap: clamp(2rem, 5vw, 5.5rem);
 }
 
-/* The index: the four diseases in large print, the one shown marked in its colour. */
+/* The index: the four diseases in large print, the one shown marked in its colour. The first one is
+   marked from the first frame, as the script will choose it (site.js), not as it comes. */
 .atlas__index {
   position: sticky;
   top: calc(var(--header-h) + 1.5rem);
@@ -8359,19 +8498,19 @@ html:not(.js) .schema__play {
 }
 
 .atlas__tab:hover,
-.atlas__tab[aria-selected="true"] {
+.atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *)) {
   color: var(--c-ink);
 }
 
-.atlas__tab[aria-selected="true"] {
+.atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *)) {
   padding-left: 1rem;
 }
 
-.atlas__tab[aria-selected="true"]::before {
+.atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *))::before {
   transform: scaleY(1);
 }
 
-.atlas__tab[aria-selected="true"] .atlas__num {
+.atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *)) .atlas__num {
   color: var(--patho-ink, var(--c-blue));
 }
 
@@ -8468,9 +8607,10 @@ html:not(.js) .schema__play {
   font-size: 1.125rem;
 }
 
-/* Changing plates: the next one comes into focus. */
+/* Changing plates: the next one comes into focus (only once the visitor has chosen one, site.js:
+   the first plate stays as it was painted). */
 @media (prefers-reduced-motion: no-preference) {
-  .is-tabs .atlas__plate.is-shown {
+  .is-browsed .atlas__plate.is-shown {
     animation: plate-in 0.6s var(--ease-out);
   }
 }
@@ -8543,14 +8683,14 @@ html:not(.js) .schema__play {
     display: none;
   }
 
-  .atlas__tab[aria-selected="true"] {
+  .atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *)) {
     padding-left: 1rem;
     border-color: var(--patho-ink, var(--c-blue));
     background: var(--patho-ink, var(--c-blue));
     color: var(--c-light);
   }
 
-  .atlas__tab[aria-selected="true"] .atlas__num {
+  .atlas__tab:is([aria-selected="true"], :where(.js .atlas:not(.is-tabs) li:first-child > *)) .atlas__num {
     color: var(--patho-accent, var(--c-sky));
   }
 
@@ -8804,10 +8944,10 @@ html[data-hero="night"] :focus-visible {
   color: var(--c-on-night);
 }
 
-/* The four procedures, like an operating schedule. */
+/* The five procedures, like an operating schedule. */
 .bloc-index {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: clamp(2.5rem, 5vw, 4rem) 0 0;
   padding: 0;
   border-top: 1px solid var(--c-line-dark);
@@ -9011,7 +9151,7 @@ body:has(.site-header:not(.is-hidden)) .chapter-nav.is-shown {
 
 .chapter-nav__list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   height: 100%;
   margin: 0;
   padding: 0;
@@ -9079,10 +9219,10 @@ html[data-chapters] {
   }
 }
 
-/* Phones: the number above the name, the four names spread over the width. */
+/* Phones: the number above the name, the five names spread over the width. */
 @media (max-width: 760px) {
   .chapter-nav__list {
-    grid-template-columns: repeat(4, auto);
+    grid-template-columns: repeat(5, auto);
     justify-content: space-between;
   }
 
@@ -9255,7 +9395,8 @@ html[data-chapters] {
 
 /* Each operation has its own colour, shared by its entry in the index, its numbers, its steps, its
    light and the drawing behind it: amber for the lens, violet for the laser, rose for the eyelids,
-   teal for the retina. The accents keep a contrast of 9:1 or more on the night. */
+   teal for the injections, lime for the surgery of the retina. The accents keep a contrast of 9:1 or
+   more on the night. */
 .chapter--cataracte,
 :is(.bloc-index, .chapter-nav) a[href="#cataracte"] {
   --chapter-accent: var(--c-amber);
@@ -9282,6 +9423,13 @@ html[data-chapters] {
   --chapter-accent: var(--c-teal);
   --chapter-tint: rgba(128, 212, 217, 0.09);
   --chapter-glow: rgba(93, 190, 200, 0.2);
+}
+
+.chapter--retine,
+:is(.bloc-index, .chapter-nav) a[href="#retine"] {
+  --chapter-accent: var(--c-lime);
+  --chapter-tint: rgba(200, 224, 122, 0.09);
+  --chapter-glow: rgba(178, 210, 90, 0.18);
 }
 
 /* The side: the pause, the steps, and at the bottom the end of the chapter. */
@@ -11619,6 +11767,12 @@ main[data-op="ivt"] {
   --op-glow: rgba(93, 190, 200, 0.16);
 }
 
+main[data-op="retine"] {
+  --op-ink: var(--c-lime-ink);
+  --op-accent: var(--c-lime);
+  --op-glow: rgba(178, 210, 90, 0.15);
+}
+
 /* ---------- Downloads ---------- */
 
 /* Index reading, like the charter: the topic on the left, its documents on the right. */
@@ -11648,7 +11802,7 @@ main[data-op="ivt"] {
   font-size: var(--fs-small);
 }
 
-/* The documents of the four operations carry their colour, as on the surgeries page. */
+/* The documents of the five operations carry their colour, as on the surgeries page. */
 .doc-group[id="cataracte"] {
   --doc-accent: var(--c-amber-ink);
 }
@@ -11663,6 +11817,10 @@ main[data-op="ivt"] {
 
 .doc-group[id="ivt"] {
   --doc-accent: var(--c-teal-ink);
+}
+
+.doc-group[id="retine"] {
+  --doc-accent: var(--c-lime-ink);
 }
 
 /* The grid of Amsler watches the macula: the gold of the macula, as on the diseases page. */
@@ -14875,73 +15033,36 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 
 /* ---------- Cross-page transitions ---------- */
 
-@view-transition {
-  navigation: auto;
-}
+/* Their opt-in (@view-transition, none with reduced motion) is in the style at the top of the head of
+   each page (_build/build.js): here, the next page could work out its styles before this stylesheet
+   came, and Chrome then dropped the transition. */
 
-/* The next page opens like a pupil, over the previous one going out of focus. */
-/* The header does not move from one page to the next. */
-.site-header {
+/* The next page opens like a pupil, over the previous one going out of focus. Only what both pages
+   show travels from one to the other: the header, which does not move, unless the page is left from
+   the menu or the header changes colours (.vt-solo: it then goes with its page); the title of an
+   operation or a disease going to its own page. Both pages name them as they are captured (the
+   script in the head of each page, _build/build.js): named here for good, a title left under the
+   open menu flew over it, and a title shown by one page only came out of the pupil. */
+html:not(.vt-solo) .site-header {
   view-transition-name: site-header;
-}
-
-/* The title of an operation or a disease travels to the title of its own page. */
-#ch-cataracte,
-main[data-op="cataracte"] .page-head .page-title,
-.lamp__item[href$="chirurgies/cataracte"] .lamp__name,
-.next-link[href$="cataracte"] .next-link__title {
-  view-transition-name: op-cataracte;
-}
-
-#ch-laser,
-main[data-op="laser"] .page-head .page-title,
-.lamp__item[href$="chirurgies/laser"] .lamp__name,
-.next-link[href$="laser"] .next-link__title {
-  view-transition-name: op-laser;
-}
-
-#ch-paupieres,
-main[data-op="paupieres"] .page-head .page-title,
-.lamp__item[href$="chirurgies/paupieres"] .lamp__name,
-.next-link[href$="paupieres"] .next-link__title {
-  view-transition-name: op-paupieres;
-}
-
-#ch-ivt,
-main[data-op="ivt"] .page-head .page-title,
-.lamp__item[href$="chirurgies/ivt"] .lamp__name,
-.next-link[href$="ivt"] .next-link__title {
-  view-transition-name: op-ivt;
-}
-
-#plate-glaucome,
-main[data-patho="glaucome"] .page-head .page-title,
-.lamp__item[href$="pathologies/glaucome"] .lamp__name {
-  view-transition-name: patho-glaucome;
-}
-
-#plate-diabete,
-main[data-patho="diabete"] .page-head .page-title,
-.lamp__item[href$="pathologies/diabete"] .lamp__name {
-  view-transition-name: patho-diabete;
-}
-
-#plate-decollement,
-main[data-patho="decollement"] .page-head .page-title,
-.lamp__item[href$="pathologies/decollement"] .lamp__name {
-  view-transition-name: patho-decollement;
-}
-
-#plate-dmla,
-main[data-patho="dmla"] .page-head .page-title,
-.lamp__item[href$="pathologies/dmla"] .lamp__name {
-  view-transition-name: patho-dmla;
 }
 
 /* The titles travel in the time of the new page opening, with the curve of on-screen movements. */
 ::view-transition-group(*) {
   animation-duration: 0.6s;
   animation-timing-function: var(--ease-in-out);
+}
+
+/* What one page only shows (a title not found in time on the next page): it goes at once, or comes
+   as the pupil reaches it. */
+::view-transition-old(*):only-child {
+  animation-duration: 0.2s;
+}
+
+::view-transition-new(*):only-child {
+  animation-duration: 0.3s;
+  animation-delay: 0.3s;
+  animation-fill-mode: both;
 }
 
 /* The old page goes faster than the new one comes. */
@@ -14972,10 +15093,6 @@ main[data-patho="dmla"] .page-head .page-title,
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  @view-transition {
-    navigation: none;
-  }
-
   /* The animated drawings still play (they have their pause button). */
   *:not(:is(.schema, .chapter, .film, .lamp, .trial) *),
   *:not(:is(.schema, .chapter, .film, .lamp, .trial) *)::before,

@@ -122,10 +122,30 @@
     setMenuOpen(menuToggle.getAttribute('aria-expanded') !== 'true');
   });
 
+  // Going to another page, the menu stays open: the next page opens over it (the cross-page
+  // transition, site.css). Closed at the click, it was caught half closed, under the header of the
+  // page. It is closed at once if the visitor comes back to this page kept by the browser.
+  const canOpenOver = 'onpageswap' in window;
   menu?.addEventListener('click', (event) => {
-    if (event.target.closest('a')) {
+    const link = event.target.closest('a');
+    if (!link) {
+      return;
+    }
+    const isNewTab = event.ctrlKey || event.metaKey || event.shiftKey || link.target === '_blank';
+    const isOtherPage = link.origin === window.location.origin && link.pathname !== window.location.pathname;
+    if (!(canOpenOver && isOtherPage && !isNewTab)) {
       setMenuOpen(false);
     }
+  });
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted || !root.classList.contains('is-menu-open')) {
+      return;
+    }
+    menu.style.transition = 'none';
+    setMenuOpen(false);
+    // The closed menu is applied before its transition comes back.
+    window.getComputedStyle(menu).getPropertyValue('clip-path');
+    menu.style.removeProperty('transition');
   });
 
   document.addEventListener('keydown', (event) => {
@@ -1534,6 +1554,10 @@
     plates.forEach((plate) => plate.setAttribute('role', 'tabpanel'));
 
     const select = (name, { focus = false, remember = false } = {}) => {
+      // A plate chosen by the visitor comes into focus (site.css); the first one stays as it was painted.
+      if (remember) {
+        atlas.classList.add('is-browsed');
+      }
       tabs.forEach((tab) => {
         const isSelected = tab.dataset.atlasTab === name;
         tab.setAttribute('aria-selected', String(isSelected));
@@ -1733,6 +1757,42 @@
       entries.filter((entry) => entry.isIntersecting).forEach((entry) => setCurrent(entry.target.id));
     }, { rootMargin: '-45% 0px -50% 0px' });
     document.querySelectorAll('[data-chapter]').forEach((chapter) => reading.observe(chapter));
+  }
+
+  // The chapters far from the screen are left out of the work of the page, with a height only
+  // reserved (content-visibility, site.css): before going to one of them (a link of the page, or the
+  // address of a chapter), they are all laid out, so that the page arrives where the chapter really
+  // is (with the reserved heights it arrived some 80 pixels off); once there, they are left out again.
+  const chapters = [...document.querySelectorAll('.chapters .chapter')];
+  if (chapters.length) {
+    let release = 0;
+    const leaveOut = () => {
+      window.clearTimeout(release);
+      chapters.forEach((chapter) => chapter.style.removeProperty('content-visibility'));
+    };
+    const layOut = () => {
+      chapters.forEach((chapter) => chapter.style.setProperty('content-visibility', 'visible'));
+      window.clearTimeout(release);
+      window.addEventListener('scrollend', leaveOut, { once: true });
+      release = window.setTimeout(leaveOut, 3000);
+    };
+    const isChapterTarget = (hash) => Boolean(hash && document.getElementById(decodeURIComponent(hash.slice(1)))?.closest('.chapters'));
+    if (isChapterTarget(window.location.hash)) {
+      layOut();
+    }
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest?.('a[href^="#"]');
+      if (!link || !isChapterTarget(link.hash)) {
+        return;
+      }
+      layOut();
+      // A chapter laid out for the first time grows a frame later, once its open step is measured
+      // (above): the page then goes again to the place of the chapter, now known.
+      const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      }));
+    });
   }
 
   // Intervention pages: the film shows the text of the step playing in large.

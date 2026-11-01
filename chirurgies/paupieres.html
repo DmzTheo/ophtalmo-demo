@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}@view-transition{navigation:auto}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
   <title>Chirurgie des paupières, toxine et acide hyaluronique · Ophta Miramas La Crau</title>
   <meta name="description" content="La chirurgie esthétique des paupières (blépharoplastie) et les injections de toxine botulique et d'acide hyaluronique : déroulement et fiches d'information.">
   <meta name="robots" content="noindex">
@@ -22,17 +23,81 @@
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/images/apple-icon-180x180.png">
   <link rel="manifest" href="../assets/images/manifest.json">
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
+  <script>(function crossPage(darkHeads) {
+const KEY = 'ophta-vt';
+const root = document.documentElement;
+const TRAVELLERS = {
+op: '#ch-{}, main[data-op="{}"] .page-head .page-title, .lamp__item[href$="chirurgies/{}"] .lamp__name, .next-link[href$="{}"] .next-link__title',
+patho: '#plate-{}, main[data-patho="{}"] .page-head .page-title, .lamp__item[href$="pathologies/{}"] .lamp__name',
+};
+let named = [];
+const pathOf = (url) => new URL(url, location.href).pathname.replace(/\.html$/, '').replace(/\/index$/, '/');
+const nameFor = (path) => {
+const match = path.match(/^\/(chirurgies|details|pathologies)\/([a-z]+)$/);
+return match ? `${match[1] === 'pathologies' ? 'patho' : 'op'}-${match[2]}` : '';
+};
+const isSeen = (element) => {
+const box = element.getBoundingClientRect();
+return box.width > 0 && box.bottom > 0 && box.top < innerHeight;
+};
+const give = (name) => {
+const [kind, key] = name.split('-');
+const element = [...document.querySelectorAll(TRAVELLERS[kind].replaceAll('{}', key))].find(isSeen);
+if (element) {
+element.style.viewTransitionName = name;
+named.push(element);
+}
+return Boolean(element);
+};
+const takeBack = () => {
+named.forEach((element) => element.style.removeProperty('view-transition-name'));
+named = [];
+root.classList.remove('vt-solo');
+};
+addEventListener('pageswap', (event) => {
+takeBack();
+if (!event.viewTransition || !event.activation) {
+return;
+}
+const to = pathOf(event.activation.entry.url);
+const isFromMenu = root.classList.contains('is-menu-open');
+const isDark = root.dataset.hero === 'night' || (root.dataset.hero === 'dark' && !document.querySelector('.site-header.is-scrolled'));
+const isSolo = isFromMenu || isDark !== darkHeads.includes(to);
+const name = isFromMenu ? '' : nameFor(to);
+const names = name && give(name) ? [name] : [];
+root.classList.toggle('vt-solo', isSolo);
+try {
+sessionStorage.setItem(KEY, JSON.stringify({ to, names, isSolo }));
+} catch (error) {
+}
+});
+addEventListener('pagereveal', (event) => {
+takeBack();
+let told = null;
+try {
+told = JSON.parse(sessionStorage.getItem(KEY));
+sessionStorage.removeItem(KEY);
+} catch (error) {
+}
+if (!event.viewTransition || !told || told.to !== pathOf(location.href)) {
+return;
+}
+root.classList.toggle('vt-solo', told.isSolo);
+told.names.forEach(give);
+event.viewTransition.finished.finally(takeBack);
+});
+})(["/","/chirurgies"])</script>
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="../assets/stylesheets/site.min.css">
-  <script src="../assets/scripts/view.js" defer></script>
-  <script src="../assets/vendor/gsap/gsap.min.js" defer></script>
-  <script src="../assets/vendor/gsap/SplitText.min.js" defer></script>
-  <script src="../assets/scripts/site.js" defer></script>
-  <script src="../assets/scripts/motion.js" defer></script>
-  <script src="../assets/scripts/drawing.js" defer></script>
-  <script src="../assets/scripts/stars.js" defer></script>
+  <link rel="preload" href="../assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=3ef8ec4d">
+  <script src="../assets/scripts/view.js?v=ace5a464" defer></script>
+  <script src="../assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
+  <script src="../assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
+  <script src="../assets/scripts/site.js?v=01edfdd6" defer></script>
+  <script src="../assets/scripts/motion.js?v=cd19337d" defer></script>
+  <script src="../assets/scripts/drawing.js?v=dfcf8c14" defer></script>
+  <script src="../assets/scripts/stars.js?v=8c24e288" defer></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -179,7 +244,7 @@
 
   <main id="contenu" data-op="paupieres">
     <section class="page-head" data-stars>
-      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></span></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
       <div class="container page-head__grid">
         <div>
           <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -215,8 +280,8 @@
     <path d="M120 160C136.7 152 183.3 122.3 220 112C256.7 101.7 301.7 98.7 340 98C378.3 97.3 418.3 101 450 108C481.7 115 516.7 134.7 530 140" class="brow"/><path d="M126 171l10 -14" class="hair"/><path d="M138.1 165.3l9.8 -14" class="hair"/><path d="M150.1 159.7l9.6 -14" class="hair"/><path d="M162.2 154.1l9.5 -14" class="hair"/><path d="M174.2 148.7l9.3 -14" class="hair"/><path d="M186.3 143.5l9.1 -14" class="hair"/><path d="M198.4 138.6l8.9 -14" class="hair"/><path d="M210.4 133.9l8.7 -14" class="hair"/><path d="M222.5 129.5l8.5 -14" class="hair"/><path d="M234.5 125.5l8.4 -14" class="hair"/><path d="M246.6 121.9l8.2 -14" class="hair"/><path d="M258.7 118.8l8 -14" class="hair"/><path d="M270.7 116.1l7.8 -14" class="hair"/><path d="M282.8 113.8l7.6 -14" class="hair"/><path d="M294.8 112.1l7.5 -14" class="hair"/><path d="M306.9 110.9l7.3 -14" class="hair"/><path d="M319 110.2l7.1 -14" class="hair"/><path d="M331 110l6.9 -14" class="hair"/><path d="M343.1 110.3l6.7 -14" class="hair"/><path d="M355.2 111.2l6.5 -14" class="hair"/><path d="M367.2 112.6l6.4 -14" class="hair"/><path d="M379.3 114.4l6.2 -14" class="hair"/><path d="M391.3 116.8l6 -14" class="hair"/><path d="M403.4 119.6l5.8 -14" class="hair"/><path d="M415.5 122.8l5.6 -14" class="hair"/><path d="M427.5 126.4l5.5 -14" class="hair"/><path d="M439.6 130.4l5.3 -14" class="hair"/><path d="M451.6 134.7l5.1 -14" class="hair"/><path d="M463.7 139.3l4.9 -14" class="hair"/><path d="M475.8 144.2l4.7 -14" class="hair"/><path d="M487.8 149.2l4.5 -14" class="hair"/><path d="M499.9 154.4l4.4 -14" class="hair"/><path d="M511.9 159.7l4.2 -14" class="hair"/><path d="M524 165l4 -14" class="hair"/>
     <path d="M176 252C188.3 245.7 222.7 222.3 250 214C277.3 205.7 310 202 340 202C370 202 404.7 206 430 214C455.3 222 481.7 244 492 250" class="crease"/>
     
-    <clipPath id="sp15-opening"><path d="M150 344C160 336.7 180 310.7 210 300C240 289.3 290 280.7 330 280C370 279.3 420.3 284 450 296C479.7 308 498.3 342.7 508 352L508 352C498.3 359.3 479.7 386.3 450 396C420.3 405.7 369.7 410.7 330 410C290.3 409.3 242 403 212 392C182 381 160.3 352 150 344Z"/></clipPath>
-    <g clip-path="url(#sp15-opening)">
+    <clipPath id="sp16-opening"><path d="M150 344C160 336.7 180 310.7 210 300C240 289.3 290 280.7 330 280C370 279.3 420.3 284 450 296C479.7 308 498.3 342.7 508 352L508 352C498.3 359.3 479.7 386.3 450 396C420.3 405.7 369.7 410.7 330 410C290.3 409.3 242 403 212 392C182 381 160.3 352 150 344Z"/></clipPath>
+    <g clip-path="url(#sp16-opening)">
       <rect x="140" y="270" width="380" height="150" class="sclera-face no-stroke"/>
       <circle cx="330" cy="344" r="64" class="iris-face"/><circle cx="330" cy="344" r="22" class="pupil-face"/><circle cx="316" cy="330" r="6" class="catchlight"/>
     </g>
@@ -307,7 +372,7 @@
     <section class="section section--flush-top" data-stars>
       <div class="container more">
         <a class="info-card" href="../telechargements#paupieres" data-reveal>
-          <span class="drawing drawing--optique" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg#d"/></svg></span></span>
+          <span class="drawing drawing--optique" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/optique.svg?v=dbfe04ec#d"/></svg></span></span>
           <span class="info-card__text">
             <span class="info-card__kicker">Fiches d'information</span>
             <span class="info-card__title">Pour plus d'informations sur la chirurgie esthétique des paupières</span>
@@ -326,7 +391,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg#d"/></svg></span></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>

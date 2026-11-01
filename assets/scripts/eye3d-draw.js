@@ -67,16 +67,19 @@ function build(THREE, link, canvas, context, data, sizeOf) {
     laser: deeper(token('--c-violet', '#c4b5fd')),
     paupieres: deeper(token('--c-rose', '#f3a99c')),
     ivt: deeper(token('--c-teal', '#80d4d9')),
+    retine: deeper(token('--c-lime', '#c8e07a')),
   };
-  const ORDER = ['cataracte', 'laser', 'paupieres', 'ivt'];
+  const ORDER = ['cataracte', 'laser', 'paupieres', 'ivt', 'retine'];
   // How the eye turns to show each part (degrees; positive yaw = looking to the right, away from
   // the title): the lens and the cornea from the side, the eyelids almost from the front, the
-  // retina from behind (the eye then looks to the left, its back towards the right).
+  // retina from behind (the eye then looks to the left, its back towards the right), the vitreous
+  // from the side and a little from above.
   const POSES = {
     cataracte: { yaw: 56, pitch: 8 },
     laser: { yaw: 80, pitch: 4 },
     paupieres: { yaw: 18, pitch: 4 },
     ivt: { yaw: -142, pitch: 12 },
+    retine: { yaw: -96, pitch: 26 },
   };
   const STEP_SECONDS = 3;
   const LINE_OPACITY = isLook ? 0.34 : 0.2;
@@ -301,6 +304,13 @@ function build(THREE, link, canvas, context, data, sizeOf) {
       ...vessel(new THREE.Vector3(0.75, -0.2, -0.7), 18, -0.1),
     ], lineMaterial()),
     lathe(profiles.retina, glowMaterial({ side: THREE.BackSide, power: 1.4, intensity: 0.32 })),
+  ]);
+
+  // Vitreous (retinal surgery: a vitrectomy takes it out): the gel within the retina, in rings.
+  const vitreous = arc(26, deg(ORA) + 0.1, Math.PI, (t) => [(RETINA - 0.9) * Math.sin(t), (RETINA - 0.9) * Math.cos(t)]);
+  addPart('retine', [
+    lines([...parallels(vitreous, [0.12, 0.3, 0.5, 0.7, 0.88]), ...meridians(vitreous, 8, 0.12)], lineMaterial()),
+    lathe(vitreous, glowMaterial({ side: THREE.DoubleSide, power: 1.2, intensity: 0.22 })),
   ]);
 
   // Optic nerve, leaving the back of the eye on the side of the nose.

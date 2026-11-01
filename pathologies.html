@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}@view-transition{navigation:auto}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
   <title>Maladies de l'œil : glaucome, DMLA, diabète, décollement · Ophta Miramas La Crau</title>
   <meta name="description" content="Glaucome, rétinopathie diabétique, DMLA, décollement de la rétine : comprendre ces maladies de l'œil, leurs signes d'alerte et quand consulter sans attendre.">
   <meta name="robots" content="noindex">
@@ -22,19 +23,83 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-icon-180x180.png">
   <link rel="manifest" href="assets/images/manifest.json">
   <script>(function(l){var p=l.pathname,c=p.replace(/(^|[/])index(?:[.]html)?$/,'$1').replace(/[.]html$/,'');if(c!==p&&/^https?:$/.test(l.protocol))l.replace(c+l.search+l.hash)})(location);document.documentElement.classList.add('js');try{var t=localStorage.getItem('ophta-text-size');if(t)document.documentElement.dataset.textSize=t}catch(e){}</script>
+  <script>(function crossPage(darkHeads) {
+const KEY = 'ophta-vt';
+const root = document.documentElement;
+const TRAVELLERS = {
+op: '#ch-{}, main[data-op="{}"] .page-head .page-title, .lamp__item[href$="chirurgies/{}"] .lamp__name, .next-link[href$="{}"] .next-link__title',
+patho: '#plate-{}, main[data-patho="{}"] .page-head .page-title, .lamp__item[href$="pathologies/{}"] .lamp__name',
+};
+let named = [];
+const pathOf = (url) => new URL(url, location.href).pathname.replace(/\.html$/, '').replace(/\/index$/, '/');
+const nameFor = (path) => {
+const match = path.match(/^\/(chirurgies|details|pathologies)\/([a-z]+)$/);
+return match ? `${match[1] === 'pathologies' ? 'patho' : 'op'}-${match[2]}` : '';
+};
+const isSeen = (element) => {
+const box = element.getBoundingClientRect();
+return box.width > 0 && box.bottom > 0 && box.top < innerHeight;
+};
+const give = (name) => {
+const [kind, key] = name.split('-');
+const element = [...document.querySelectorAll(TRAVELLERS[kind].replaceAll('{}', key))].find(isSeen);
+if (element) {
+element.style.viewTransitionName = name;
+named.push(element);
+}
+return Boolean(element);
+};
+const takeBack = () => {
+named.forEach((element) => element.style.removeProperty('view-transition-name'));
+named = [];
+root.classList.remove('vt-solo');
+};
+addEventListener('pageswap', (event) => {
+takeBack();
+if (!event.viewTransition || !event.activation) {
+return;
+}
+const to = pathOf(event.activation.entry.url);
+const isFromMenu = root.classList.contains('is-menu-open');
+const isDark = root.dataset.hero === 'night' || (root.dataset.hero === 'dark' && !document.querySelector('.site-header.is-scrolled'));
+const isSolo = isFromMenu || isDark !== darkHeads.includes(to);
+const name = isFromMenu ? '' : nameFor(to);
+const names = name && give(name) ? [name] : [];
+root.classList.toggle('vt-solo', isSolo);
+try {
+sessionStorage.setItem(KEY, JSON.stringify({ to, names, isSolo }));
+} catch (error) {
+}
+});
+addEventListener('pagereveal', (event) => {
+takeBack();
+let told = null;
+try {
+told = JSON.parse(sessionStorage.getItem(KEY));
+sessionStorage.removeItem(KEY);
+} catch (error) {
+}
+if (!event.viewTransition || !told || told.to !== pathOf(location.href)) {
+return;
+}
+root.classList.toggle('vt-solo', told.isSolo);
+told.names.forEach(give);
+event.viewTransition.finished.finally(takeBack);
+});
+})(["/","/chirurgies"])</script>
   <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <style>html{background:#f6f4ef;color:#0d1a2b}html[data-hero="dark"]{background:#07101d}html[data-hero="night"],html[data-hero="night"] body{background:#0a1424;color:#fff}html:not(.js) [data-defer]{display:none}</style>
-  <link rel="stylesheet" href="assets/stylesheets/site.min.css">
-  <script src="assets/scripts/view.js" defer></script>
-  <script src="assets/vendor/gsap/gsap.min.js" defer></script>
-  <script src="assets/vendor/gsap/SplitText.min.js" defer></script>
-  <script src="assets/scripts/site.js" defer></script>
-  <script src="assets/scripts/motion.js" defer></script>
-  <script src="assets/scripts/drawing.js" defer></script>
-  <script src="assets/scripts/stars.js" defer></script>
-  <script src="assets/scripts/living.js" defer></script>
-  <script type="module" src="assets/scripts/scene3d.js"></script>
+  <link rel="preload" href="assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/stylesheets/site.min.css?v=3ef8ec4d">
+  <script src="assets/scripts/view.js?v=ace5a464" defer></script>
+  <script src="assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
+  <script src="assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
+  <script src="assets/scripts/site.js?v=01edfdd6" defer></script>
+  <script src="assets/scripts/motion.js?v=cd19337d" defer></script>
+  <script src="assets/scripts/drawing.js?v=dfcf8c14" defer></script>
+  <script src="assets/scripts/stars.js?v=8c24e288" defer></script>
+  <script src="assets/scripts/living.js?v=87bada28" defer></script>
+  <script type="module" src="assets/scripts/scene3d.js?v=9deb692d"></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -170,7 +235,7 @@
 
   <main id="contenu">
     <section class="page-head page-head--atlas">
-      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/retine.svg#d"/></svg></span></div>
+      <div class="drawing drawing--page" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/retine.svg?v=089202dc#d"/></svg></span></div>
       <canvas class="living" data-living="mosaic" data-living-seed="2" aria-hidden="true"></canvas>
       <div class="container">
         <nav class="breadcrumb" aria-label="Fil d'Ariane">
@@ -207,7 +272,7 @@
               <p class="plate__num" aria-hidden="true"><span>Planche</span> I</p>
             </div>
             <div class="plate__figure">
-              <figure class="schema schema--glaucome schema--compact schema--focus is-step-1 is-step-2 is-step-3 is-step-4" data-schema data-step="4" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.3201;--s1v:0.0375;--s1r:0.1023;--s2u:-0.33;--s2v:-0.23;--s2r:0.1656;--s3u:0.335;--s3v:-0.11;--s3r:0.1725;--s4u:0.335;--s4v:0.1875;--s4r:0.1725" aria-label="Le glaucome chronique, pas à pas">
+              <figure class="schema schema--glaucome schema--compact schema--focus is-step-1 is-playing" data-schema data-step="1" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.3201;--s1v:0.0375;--s1r:0.1023;--s2u:-0.33;--s2v:-0.23;--s2r:0.1656;--s3u:0.335;--s3v:-0.11;--s3r:0.1725;--s4u:0.335;--s4v:0.1875;--s4r:0.1725" aria-label="Le glaucome chronique, pas à pas">
       <div class="schema__stage">
         <div class="schema__canvas">
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" aria-hidden="true" focusable="false">
@@ -278,7 +343,7 @@
       </div>
       <figcaption class="schema__caption">
         <p class="schema__now" aria-live="polite">Le liquide de l'œil circule.</p>
-        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot" data-goto="1" aria-pressed="false" aria-label="Étape 1 : Le liquide de l'œil circule." data-caption="Le liquide de l'œil circule."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="2" aria-pressed="false" aria-label="Étape 2 : Le filtre s'encrasse." data-caption="Le filtre s'encrasse."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="3" aria-pressed="false" aria-label="Étape 3 : Le nerf optique s'abîme." data-caption="Le nerf optique s'abîme."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="4" aria-pressed="false" aria-label="Étape 4 : Le champ de vision se réduit." data-caption="Le champ de vision se réduit."><span class="schema__bar"></span></button></li></ol>
+        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot is-active" aria-pressed="true" data-goto="1" aria-label="Étape 1 : Le liquide de l'œil circule." data-caption="Le liquide de l'œil circule."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="2" aria-label="Étape 2 : Le filtre s'encrasse." data-caption="Le filtre s'encrasse."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="3" aria-label="Étape 3 : Le nerf optique s'abîme." data-caption="Le nerf optique s'abîme."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="4" aria-label="Étape 4 : Le champ de vision se réduit." data-caption="Le champ de vision se réduit."><span class="schema__bar"></span></button></li></ol>
       </figcaption>
     </figure>
             </div>
@@ -303,7 +368,7 @@
               <p class="plate__num" aria-hidden="true"><span>Planche</span> II</p>
             </div>
             <div class="plate__figure">
-              <figure class="schema schema--retinopathie schema--compact schema--focus is-step-1 is-step-2 is-step-3 is-step-4 is-step-5" data-schema data-step="5" data-autoplay style="--schema-ratio:4 / 3;--s1u:0.0063;--s1v:0;--s1r:0.1563;--s2u:-0.0675;--s2v:0.015;--s2r:0.1875;--s3u:0.3625;--s3v:0.215;--s3r:0.1775;--s4u:-0.0975;--s4v:0;--s4r:0.29;--s5u:-0.01;--s5v:-0.08;--s5r:0.215" aria-label="La rétinopathie diabétique, pas à pas">
+              <figure class="schema schema--retinopathie schema--compact schema--focus is-step-1 is-playing" data-schema data-step="1" data-autoplay style="--schema-ratio:4 / 3;--s1u:0.0063;--s1v:0;--s1r:0.1563;--s2u:-0.0675;--s2v:0.015;--s2r:0.1875;--s3u:0.3625;--s3v:0.215;--s3r:0.1775;--s4u:-0.0975;--s4v:0;--s4r:0.29;--s5u:-0.01;--s5v:-0.08;--s5r:0.215" aria-label="La rétinopathie diabétique, pas à pas">
       <div class="schema__stage">
         <div class="schema__canvas">
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" aria-hidden="true" focusable="false">
@@ -342,7 +407,7 @@
       </div>
       <figcaption class="schema__caption">
         <p class="schema__now" aria-live="polite">Un fond d'œil normal.</p>
-        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot" data-goto="1" aria-pressed="false" aria-label="Étape 1 : Un fond d'œil normal." data-caption="Un fond d'œil normal."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="2" aria-pressed="false" aria-label="Étape 2 : Les petits vaisseaux s'abîment." data-caption="Les petits vaisseaux s'abîment."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="3" aria-pressed="false" aria-label="Étape 3 : Ils laissent fuir du liquide." data-caption="Ils laissent fuir du liquide."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="4" aria-pressed="false" aria-label="Étape 4 : Ils se bouchent." data-caption="Ils se bouchent."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="5" aria-pressed="false" aria-label="Étape 5 : De nouveaux vaisseaux, fragiles." data-caption="De nouveaux vaisseaux, fragiles."><span class="schema__bar"></span></button></li></ol>
+        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot is-active" aria-pressed="true" data-goto="1" aria-label="Étape 1 : Un fond d'œil normal." data-caption="Un fond d'œil normal."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="2" aria-label="Étape 2 : Les petits vaisseaux s'abîment." data-caption="Les petits vaisseaux s'abîment."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="3" aria-label="Étape 3 : Ils laissent fuir du liquide." data-caption="Ils laissent fuir du liquide."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="4" aria-label="Étape 4 : Ils se bouchent." data-caption="Ils se bouchent."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="5" aria-label="Étape 5 : De nouveaux vaisseaux, fragiles." data-caption="De nouveaux vaisseaux, fragiles."><span class="schema__bar"></span></button></li></ol>
       </figcaption>
     </figure>
             </div>
@@ -367,7 +432,7 @@
               <p class="plate__num" aria-hidden="true"><span>Planche</span> III</p>
             </div>
             <div class="plate__figure">
-              <figure class="schema schema--dmla schema--compact schema--focus is-step-1 is-step-2 is-step-3 is-step-4 is-step-5" data-schema data-step="5" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.135;--s1v:-0.0625;--s1r:0.2562;--s2u:-0.135;--s2v:0.0225;--s2r:0.21;--s3u:-0.135;--s3v:-0.015;--s3r:0.2062;--s4u:-0.1275;--s4v:-0.01;--s4r:0.2225;--s5u:-0.135;--s5v:-0.0375;--s5r:0.2188" aria-label="La DMLA, pas à pas">
+              <figure class="schema schema--dmla schema--compact schema--focus is-step-1 is-playing" data-schema data-step="1" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.135;--s1v:-0.0625;--s1r:0.2562;--s2u:-0.135;--s2v:0.0225;--s2r:0.21;--s3u:-0.135;--s3v:-0.015;--s3r:0.2062;--s4u:-0.1275;--s4v:-0.01;--s4r:0.2225;--s5u:-0.135;--s5v:-0.0375;--s5r:0.2188" aria-label="La DMLA, pas à pas">
       <div class="schema__stage">
         <div class="schema__canvas">
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" aria-hidden="true" focusable="false">
@@ -421,7 +486,7 @@
       </div>
       <figcaption class="schema__caption">
         <p class="schema__now" aria-live="polite">La macula.</p>
-        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot" data-goto="1" aria-pressed="false" aria-label="Étape 1 : La macula." data-caption="La macula."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="2" aria-pressed="false" aria-label="Étape 2 : Les drusen." data-caption="Les drusen."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="3" aria-pressed="false" aria-label="Étape 3 : Forme sèche (atrophique)." data-caption="Forme sèche (atrophique)."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="4" aria-pressed="false" aria-label="Étape 4 : Forme humide (exsudative)." data-caption="Forme humide (exsudative)."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="5" aria-pressed="false" aria-label="Étape 5 : Traitée tôt." data-caption="Traitée tôt."><span class="schema__bar"></span></button></li></ol>
+        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot is-active" aria-pressed="true" data-goto="1" aria-label="Étape 1 : La macula." data-caption="La macula."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="2" aria-label="Étape 2 : Les drusen." data-caption="Les drusen."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="3" aria-label="Étape 3 : Forme sèche (atrophique)." data-caption="Forme sèche (atrophique)."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="4" aria-label="Étape 4 : Forme humide (exsudative)." data-caption="Forme humide (exsudative)."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="5" aria-label="Étape 5 : Traitée tôt." data-caption="Traitée tôt."><span class="schema__bar"></span></button></li></ol>
       </figcaption>
     </figure>
             </div>
@@ -446,7 +511,7 @@
               <p class="plate__num" aria-hidden="true"><span>Planche</span> IV</p>
             </div>
             <div class="plate__figure">
-              <figure class="schema schema--decollement schema--compact schema--focus is-step-1 is-step-2 is-step-3 is-step-4 is-step-5" data-schema data-step="5" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.133;--s1v:0;--s1r:0.209;--s2u:-0.0741;--s2v:0;--s2r:0.19;--s3u:-0.1881;--s3v:-0.1827;--s3r:0.1254;--s4u:-0.0948;--s4v:-0.1664;--s4r:0.171;--s5u:0.345;--s5v:0;--s5r:0.1863" aria-label="Le décollement de la rétine, pas à pas">
+              <figure class="schema schema--decollement schema--compact schema--focus is-step-1 is-playing" data-schema data-step="1" data-autoplay style="--schema-ratio:4 / 3;--s1u:-0.133;--s1v:0;--s1r:0.209;--s2u:-0.0741;--s2v:0;--s2r:0.19;--s3u:-0.1881;--s3v:-0.1827;--s3r:0.1254;--s4u:-0.0948;--s4v:-0.1664;--s4r:0.171;--s5u:0.345;--s5v:0;--s5r:0.1863" aria-label="Le décollement de la rétine, pas à pas">
       <div class="schema__stage">
         <div class="schema__canvas">
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" aria-hidden="true" focusable="false">
@@ -498,7 +563,7 @@
       </div>
       <figcaption class="schema__caption">
         <p class="schema__now" aria-live="polite">Le vitré.</p>
-        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot" data-goto="1" aria-pressed="false" aria-label="Étape 1 : Le vitré." data-caption="Le vitré."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="2" aria-pressed="false" aria-label="Étape 2 : Le vitré se décolle." data-caption="Le vitré se décolle."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="3" aria-pressed="false" aria-label="Étape 3 : La rétine se déchire." data-caption="La rétine se déchire."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="4" aria-pressed="false" aria-label="Étape 4 : Le liquide passe sous la rétine." data-caption="Le liquide passe sous la rétine."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" data-goto="5" aria-pressed="false" aria-label="Étape 5 : La macula se soulève." data-caption="La macula se soulève."><span class="schema__bar"></span></button></li></ol>
+        <ol class="schema__dots" role="list"><li><button type="button" class="schema__dot is-active" aria-pressed="true" data-goto="1" aria-label="Étape 1 : Le vitré." data-caption="Le vitré."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="2" aria-label="Étape 2 : Le vitré se décolle." data-caption="Le vitré se décolle."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="3" aria-label="Étape 3 : La rétine se déchire." data-caption="La rétine se déchire."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="4" aria-label="Étape 4 : Le liquide passe sous la rétine." data-caption="Le liquide passe sous la rétine."><span class="schema__bar"></span></button></li><li><button type="button" class="schema__dot" aria-pressed="false" data-goto="5" aria-label="Étape 5 : La macula se soulève." data-caption="La macula se soulève."><span class="schema__bar"></span></button></li></ol>
       </figcaption>
     </figure>
             </div>
@@ -569,7 +634,7 @@
   </main>
 
   <footer class="site-footer" data-stars>
-    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg#d"/></svg></span></div>
+    <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
         <p class="label label--light">Rendez-vous en ligne</p>
