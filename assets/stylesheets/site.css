@@ -8607,8 +8607,10 @@ html:not(.js) .schema__play {
   font-size: 1.125rem;
 }
 
-/* Changing plates: the next one comes into focus (only once the visitor has chosen one, site.js:
-   the first plate stays as it was painted). */
+/* Changing plates: the next one rises into place (only once the visitor has chosen one, site.js: the
+   first plate stays as it was painted). Without a blur: a blur going down to nothing went through a
+   shader of its own at almost every size, each compiled by Chrome the first time, and the screen froze
+   for up to half a second at the first changes of plate. */
 @media (prefers-reduced-motion: no-preference) {
   .is-browsed .atlas__plate.is-shown {
     animation: plate-in 0.6s var(--ease-out);
@@ -8618,7 +8620,6 @@ html:not(.js) .schema__play {
 @keyframes plate-in {
   from {
     opacity: 0;
-    filter: blur(10px);
     transform: translateY(14px);
   }
 }
@@ -15065,19 +15066,16 @@ html:not(.vt-solo) .site-header {
   animation-fill-mode: both;
 }
 
-/* The old page goes faster than the new one comes. */
+/* The old page goes out of focus at once. Its blur does not grow: Chrome draws each size of a blur
+   with a shader of its own, compiled the first time it is met, and a growing blur stopped the screen
+   for a tenth to a third of a second, several times over the first changes of page of a visitor. */
 ::view-transition-old(root) {
-  animation: 0.4s var(--ease-in-out) both vt-out;
+  animation: none;
+  filter: blur(8px);
 }
 
 ::view-transition-new(root) {
   animation: 0.6s cubic-bezier(0.55, 0, 0.2, 1) both vt-in;
-}
-
-@keyframes vt-out {
-  to {
-    filter: blur(8px);
-  }
 }
 
 @keyframes vt-in {
