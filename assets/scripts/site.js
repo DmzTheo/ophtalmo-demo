@@ -122,10 +122,11 @@
     setMenuOpen(menuToggle.getAttribute('aria-expanded') !== 'true');
   });
 
-  // Going to another page, the menu stays open: the next page opens over it (the cross-page
-  // transition, site.css). Closed at the click, it was caught half closed, under the header of the
-  // page. It is closed at once if the visitor comes back to this page kept by the browser.
-  const canOpenOver = 'onpageswap' in window;
+  // Going to another page, the menu stays open until that page shows: it opens over the menu where
+  // the browser has the cross-page transitions (site.css), and takes its place in the others
+  // (Firefox). Closed at the click, the menu was caught half closed: under the header of the page in
+  // the transition, cut in the middle of its closing in Firefox. It is closed at once if the visitor
+  // comes back to this page kept by the browser.
   menu?.addEventListener('click', (event) => {
     const link = event.target.closest('a');
     if (!link) {
@@ -133,7 +134,8 @@
     }
     const isNewTab = event.ctrlKey || event.metaKey || event.shiftKey || link.target === '_blank';
     const isOtherPage = link.origin === window.location.origin && link.pathname !== window.location.pathname;
-    if (!(canOpenOver && isOtherPage && !isNewTab)) {
+    const isLeaving = isOtherPage && !isNewTab;
+    if (!isLeaving) {
       setMenuOpen(false);
     }
   });
