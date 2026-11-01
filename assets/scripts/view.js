@@ -6,8 +6,15 @@
 // date on the main thread, several times a second, every animation that moves something (transform,
 // motion path), and draws the page again each time; on a phone, the pages with animated drawings
 // stuttered. Only the vertical position counts (the watched parts span the width of the screen or
-// lie within it).
+// lie within it). Other browsers keep their own IntersectionObserver: it works out what is on screen
+// within its frame, while this watcher reads the scroll offset at each frame of a scroll, which made
+// Chrome work out the whole page again at every frame.
 (() => {
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
+  if (!isGecko && 'IntersectionObserver' in window) {
+    window.ViewWatcher = class ViewWatcher extends IntersectionObserver {};
+    return;
+  }
   const watchers = new Set();
   const places = new Map();
   // Elements not measured yet: measured all together at the next frame, once the browser has laid out

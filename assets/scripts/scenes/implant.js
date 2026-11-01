@@ -23,6 +23,9 @@ const settle = (t) => {
   return 1 - (1 - k) ** 3 * Math.cos(k * Math.PI * 1.2);
 };
 
+// The colours of the site it takes (read by the page, scene3d.js).
+export const tokens = ['--c-amber-ink', '--c-blue'];
+
 export function create(THREE, kit) {
   const ink = createInk(THREE);
   const scene = new THREE.Scene();

@@ -364,14 +364,20 @@
   };
 
   // Scrolling the hero away brings the eye closer: it grows, drifts toward the middle and rises more
-  // slowly than the page (decorative; the page scrolls as usual). The scroll offset is kept from the
-  // scroll event and the height of the hero from its last measure: a frame reads no layout.
-  let scrollTop = window.scrollY;
+  // slowly than the page (decorative; the page scrolls as usual). The scroll offset is read when the
+  // eye is drawn, once after each scroll, and the height of the hero from its last measure. (Read in
+  // the scroll event, it made the browser work out the whole page at each event, even far below.)
+  let scrollTop = 0;
+  let hasScrolled = true;
   window.addEventListener('scroll', () => {
-    scrollTop = window.scrollY;
+    hasScrolled = true;
   }, { passive: true });
   const view = { cx: 0, cy: 0, radius: 0, zoom: 1 };
   const updateView = () => {
+    if (hasScrolled) {
+      hasScrolled = false;
+      scrollTop = window.scrollY;
+    }
     const progress = reduceMotion ? 0 : Math.min(1, Math.max(0, scrollTop / geometry.heroHeight));
     view.zoom = 1 + 1.9 * progress * progress;
     view.cx = geometry.cx + (geometry.width / 2 - geometry.cx) * progress * 0.45;
@@ -852,6 +858,9 @@
     new ViewWatcher(([entry]) => {
       isVisible = entry.isIntersecting;
       isAway = entry.intersectionRatio < 0.45 && entry.boundingClientRect.top < 0;
+      // (Its CSS loops pause too: far from the screen, the browser no longer leaves them to the
+      // graphics chip and works them out at every frame.)
+      hero.classList.toggle('is-offscreen', !isVisible);
       start();
     }, { threshold: [0, 0.45, 1] }).observe(hero);
   }

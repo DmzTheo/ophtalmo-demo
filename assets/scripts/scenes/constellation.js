@@ -232,7 +232,7 @@ export function create(THREE, kit) {
     camera.updateProjectionMatrix();
     viewHalfHeight = Math.tan(halfFov) * camera.position.z;
     viewHalfWidth = viewHalfHeight * camera.aspect;
-    uniforms.uScale.value = Math.min(window.devicePixelRatio || 1, 2) * 3.4 * Math.max(0.7, height / 440);
+    uniforms.uScale.value = Math.min(kit.dpr, 2) * 3.4 * Math.max(0.7, height / 440);
   };
 
   // Blinks: one now and then, quick down, a little slower up.

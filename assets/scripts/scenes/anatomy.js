@@ -19,6 +19,39 @@ const smooth = (a, b, t) => {
   return k * k * (3 - 2 * k);
 };
 
+// The colour of each disease, a colour of the site; all the colours the scene takes (read by the
+// page, scene3d.js).
+const TOKENS = { glaucome: 'jade', diabete: 'raspberry', dmla: 'gold', decollement: 'plum' };
+export const tokens = ['--c-sky', ...Object.values(TOKENS).map((name) => `--c-${name}`)];
+
+// On the page: the disease chosen in the index of the atlas, or pointed in it, told to the scene.
+export function page(stage, send) {
+  const tabs = [...document.querySelectorAll('[data-atlas-tab]')];
+  if (!tabs.length) {
+    return null;
+  }
+  let chosen = 'glaucome';
+  let pointed = null;
+  const tell = () => send({ chosen, pointed });
+  const readChoice = () => {
+    chosen = tabs.find((tab) => tab.getAttribute('aria-selected') === 'true')?.dataset.atlasTab || chosen;
+    tell();
+  };
+  new MutationObserver(readChoice).observe(tabs[0].closest('ol'), { attributes: true, subtree: true, attributeFilter: ['aria-selected'] });
+  tabs.forEach((tab) => {
+    tab.addEventListener('pointerenter', () => {
+      pointed = tab.dataset.atlasTab;
+      tell();
+    });
+    tab.addEventListener('pointerleave', () => {
+      pointed = null;
+      tell();
+    });
+  });
+  readChoice();
+  return null;
+}
+
 // ---------- The eye (lathe space: Y is the axis of the eye, its front towards +Y) ----------
 const R = 12;
 const RC = 7.8;
@@ -156,7 +189,6 @@ export function create(THREE, kit) {
   // the pulses that run along them are lighter.
   const INK = new THREE.Color(kit.css('--c-sky', '#a8c8f3'));
   const DISEASES = ['glaucome', 'diabete', 'dmla', 'decollement'];
-  const TOKENS = { glaucome: 'jade', diabete: 'raspberry', dmla: 'gold', decollement: 'plum' };
   const light = (name) => new THREE.Color(kit.css(`--c-${TOKENS[name]}`, '#a8c8f3'));
   const COLOURS = Object.fromEntries(DISEASES.map((name) => [name, light(name).offsetHSL(0, 0.12, -0.1)]));
   const LIGHTS = Object.fromEntries(DISEASES.map((name) => [name, light(name).lerp(new THREE.Color('#ffffff'), 0.45)]));
@@ -618,28 +650,13 @@ export function create(THREE, kit) {
     });
   };
 
-  // ---------- The disease shown: chosen in the index of the atlas, or pointed in it ----------
-  const tabs = [...document.querySelectorAll('[data-atlas-tab]')];
+  // ---------- The disease shown: chosen in the index of the atlas, or pointed in it (page()) ----------
   let chosen = 'glaucome';
   let pointed = null;
-  const readChoice = () => {
-    chosen = tabs.find((tab) => tab.getAttribute('aria-selected') === 'true')?.dataset.atlasTab || chosen;
+  kit.listen((choice) => {
+    ({ chosen, pointed } = choice);
     kit.wake();
-  };
-  if (tabs.length) {
-    new MutationObserver(readChoice).observe(tabs[0].closest('ol'), { attributes: true, subtree: true, attributeFilter: ['aria-selected'] });
-    tabs.forEach((tab) => {
-      tab.addEventListener('pointerenter', () => {
-        pointed = tab.dataset.atlasTab;
-        kit.wake();
-      });
-      tab.addEventListener('pointerleave', () => {
-        pointed = null;
-        kit.wake();
-      });
-    });
-    readChoice();
-  }
+  });
 
   const lit = { glaucome: 0, diabete: 0, dmla: 0, decollement: 0 };
   let shown = null;

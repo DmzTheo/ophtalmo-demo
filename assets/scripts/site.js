@@ -150,12 +150,37 @@
   // an opened answer, a turned phone): a frame never makes the browser lay the page out again in the
   // middle of its work, which is what made the scroll stutter on phones.
   const progressBar = document.querySelector('[data-progress]');
+  // Where the browser moves an element with the scroll by itself, the reading bar, the photos, the
+  // heads of the pages and the drawings of the chapters are animations of the scroll (site.css); only
+  // the sizes they need are written here.
+  const isScrollDriven = window.CSS?.supports?.('animation-timeline: view()') === true;
+  // (The thread of a table of contents follows an article that is not its parent: timeline-scope.)
+  const hasViewInset = isScrollDriven && window.CSS.supports('view-timeline-inset: 40% 60%');
+  const hasTimelineScope = hasViewInset && window.CSS.supports('timeline-scope: --a');
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
   const scrollTasks = [];
-  // What only decorates the scroll (the reading bar, photos and drawings drifting, reading lines) is
-  // written ten times a second at most, and the screen glides between two writes (a short transition
-  // in the stylesheet): written at every frame, each made the browser draw the page again, which a
-  // phone could not do at the pace of a scroll (6 to 10 ms a time on the surgeries page).
-  const slowTasks = [];
+  // What decorates the scroll (the reading bar, photos and drawings drifting, reading lines) follows it
+  // at every frame, after the tasks of the page; each writes only what changed.
+  const decorTasks = [];
+  // A style value is written only when it changed: written again, even unchanged, it can have the
+  // browser work out the styles of the page again.
+  const written = new WeakMap();
+  const write = (element, property, value) => {
+    if (!element) {
+      return;
+    }
+    const values = written.get(element) || {};
+    if (values[property] === value) {
+      return;
+    }
+    values[property] = value;
+    written.set(element, values);
+    if (property.startsWith('--')) {
+      element.style.setProperty(property, value);
+    } else {
+      element.style[property] = value;
+    }
+  };
   const measureTasks = [];
   // (The scroll offset is read once the page is laid out: read while the scripts start, it made the
   // browser lay the page out early.)
@@ -170,10 +195,12 @@
     return top;
   };
 
-  slowTasks.push(() => {
-    const { y, maxScroll } = view;
-    progressBar?.style.setProperty('--progress', maxScroll > 0 ? (y / maxScroll).toFixed(4) : '0');
-  });
+  if (!isScrollDriven) {
+    decorTasks.push(() => {
+      const { y, maxScroll } = view;
+      write(progressBar, '--progress', maxScroll > 0 ? (y / maxScroll).toFixed(4) : '0');
+    });
+  }
   scrollTasks.push(() => {
     const { y } = view;
     header.classList.toggle('is-scrolled', y > 8);
@@ -196,38 +223,38 @@
     }
   });
 
-  const SLOW_PACE = 100;
-  let lastSlowRun = -Infinity;
-  let slowTimer = 0;
-  const runSlowTasks = () => {
-    window.clearTimeout(slowTimer);
-    slowTimer = 0;
-    lastSlowRun = performance.now();
-    slowTasks.forEach((task) => task());
-  };
   let isTicking = false;
   // The scroll offset is read once a frame, here: read at each scroll event, it made Firefox bring
-  // the styles of the page up to date at once, in the middle of the event.
+  // the styles of the page up to date at once, in the middle of the event. Where the decorations
+  // follow the scroll by themselves (other browsers than Firefox), what is left here (the header, the
+  // last reveals, the steps of the journeys) is brought up to date ten times a second during a scroll
+  // and once more at its end: reading the scroll offset at each frame made Chrome work out the whole
+  // page again at every frame.
+  const scrollPace = () => (isScrollDriven && !isGecko && !decorTasks.length ? 100 : 0);
+  let lastRun = -Infinity;
+  let pending = 0;
   const runScrollTasks = () => {
     isTicking = false;
+    lastRun = performance.now();
     view.y = window.scrollY;
     scrollTasks.forEach((task) => task());
-    const wait = SLOW_PACE - (performance.now() - lastSlowRun);
-    if (wait <= 0) {
-      runSlowTasks();
-    } else if (!slowTimer) {
-      // The last write of a scroll still comes, a little later.
-      slowTimer = window.setTimeout(() => {
-        view.y = window.scrollY;
-        runSlowTasks();
-      }, wait);
-    }
+    decorTasks.forEach((task) => task());
   };
   const requestScrollTasks = () => {
-    if (!isTicking) {
-      isTicking = true;
-      window.requestAnimationFrame(runScrollTasks);
+    if (isTicking || pending) {
+      return;
     }
+    const pace = scrollPace();
+    const wait = pace && lastRun + pace - performance.now();
+    if (wait > 0) {
+      pending = window.setTimeout(() => {
+        pending = 0;
+        requestScrollTasks();
+      }, wait);
+      return;
+    }
+    isTicking = true;
+    window.requestAnimationFrame(runScrollTasks);
   };
   let isMeasured = false;
   const measure = () => {
@@ -265,7 +292,13 @@
   }
 
   // Photos drift slightly inside their frame while scrolling (only those on screen are updated).
-  if (!reduceMotion.matches && 'ViewWatcher' in window) {
+  if (!reduceMotion.matches && isScrollDriven) {
+    const frames = [...document.querySelectorAll('[data-parallax]')];
+    measureTasks.push(() => {
+      const heights = frames.map((frame) => frame.offsetHeight);
+      frames.forEach((frame, i) => write(frame, '--pk', (heights[i] / view.height).toFixed(3)));
+    });
+  } else if (!reduceMotion.matches && 'ViewWatcher' in window) {
     const frames = [...document.querySelectorAll('[data-parallax]')].map((frame) => ({ frame, image: frame.querySelector('img') || frame, top: 0, height: 0 }));
     const visibleFrames = new Set();
     const frameObserver = new ViewWatcher((entries) => {
@@ -284,10 +317,10 @@
       item.top = pageTop(item.frame);
       item.height = item.frame.offsetHeight;
     }));
-    slowTasks.push(() => {
+    decorTasks.push(() => {
       visibleFrames.forEach(({ image, top, height }) => {
         const progress = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1, 1);
-        image.style.setProperty('--py', `${(-6 + progress * 6).toFixed(2)}%`);
+        write(image, '--py', `${(-6 + progress * 6).toFixed(2)}%`);
       });
     });
   }
@@ -295,26 +328,30 @@
   // Heads of the pages: their background (drawing or living scene) goes up more slowly than the
   // page, as if further away.
   const headLayers = [...document.querySelectorAll('.page-head > :is(.drawing, .living), .glasses-hero > .drawing')].map((layer) => ({ layer, top: 0, height: 0 }));
-  if (headLayers.length && !reduceMotion.matches) {
+  if (headLayers.length && !reduceMotion.matches && !isScrollDriven) {
     measureTasks.push(() => headLayers.forEach((item) => {
       item.top = pageTop(item.layer.parentElement);
       item.height = item.layer.parentElement.offsetHeight;
     }));
-    slowTasks.push(() => {
+    decorTasks.push(() => {
       headLayers.forEach(({ layer, top, height }) => {
         if (view.y < top + height) {
-          layer.style.translate = `0 ${(Math.max(0, view.y - top) * 0.35).toFixed(1)}px`;
+          write(layer, 'translate', `0 ${(Math.max(0, view.y - top) * 0.35).toFixed(1)}px`);
         }
       });
     });
   }
 
-  // Surgeries page: the large drawing behind each chapter drifts with the scroll (--drift, from -1
-  // to 1 as it crosses the screen) and, under a mouse, leans away from the pointer (--ax, --ay).
+  // Surgeries page: the large drawing behind each chapter drifts with the scroll (drift, from -1 to 1
+  // as it crosses the screen) and, under a mouse, leans away from the pointer.
   const atmos = [...document.querySelectorAll('[data-atmo]')];
-  // (On touch screens the drawing stays in place: see .chapter__atmo in the stylesheet.)
-  const isTouchScreen = window.matchMedia('(hover: none)').matches;
-  if (atmos.length && !reduceMotion.matches && !isTouchScreen && 'ViewWatcher' in window) {
+  if (atmos.length && !reduceMotion.matches && isScrollDriven) {
+    measureTasks.push(() => {
+      const heights = atmos.map((atmo) => atmo.offsetHeight);
+      atmos.forEach((atmo, i) => write(atmo, '--ak', (heights[i] / view.height).toFixed(3)));
+    });
+  }
+  if (atmos.length && !reduceMotion.matches && !isScrollDriven && 'ViewWatcher' in window) {
     const shownAtmos = new Set();
     const atmoBoxes = new Map(atmos.map((atmo) => [atmo, { top: 0, height: 0 }]));
     const atmoObserver = new ViewWatcher((entries) => {
@@ -331,33 +368,37 @@
     measureTasks.push(() => atmoBoxes.forEach((box, atmo) => {
       box.top = pageTop(atmo);
       box.height = atmo.offsetHeight;
+      box.spin = parseFloat(getComputedStyle(atmo).getPropertyValue('--spin')) || 0;
     }));
-    slowTasks.push(() => {
+    decorTasks.push(() => {
       shownAtmos.forEach((atmo) => {
-        const { top, height } = atmoBoxes.get(atmo);
+        // Written as they are: a variable on the drawing would have the browser restyle all its lines.
+        const { top, height, spin } = atmoBoxes.get(atmo);
         const drift = clamp((top - view.y + height / 2 - view.height / 2) / view.height, -1.5, 1.5);
-        atmo.style.setProperty('--drift', drift.toFixed(3));
+        write(atmo, 'translate', `0 ${(drift * -120).toFixed(1)}px`);
+        write(atmo, 'rotate', `${(drift * spin).toFixed(2)}deg`);
       });
     });
-    if (finePointer.matches) {
-      atmos.forEach((atmo) => {
-        const area = atmo.parentElement;
-        let pending = 0;
-        area.addEventListener('pointermove', (event) => {
-          window.cancelAnimationFrame(pending);
-          pending = window.requestAnimationFrame(() => {
-            const rect = area.getBoundingClientRect();
-            atmo.style.setProperty('--ax', ((event.clientX - rect.left) / rect.width - 0.5).toFixed(3));
-            atmo.style.setProperty('--ay', ((event.clientY - rect.top) / rect.height - 0.5).toFixed(3));
-          });
-        });
-        area.addEventListener('pointerleave', () => {
-          window.cancelAnimationFrame(pending);
-          atmo.style.setProperty('--ax', '0');
-          atmo.style.setProperty('--ay', '0');
+  }
+  // Under a mouse, the drawing leans away from the pointer.
+  if (atmos.length && !reduceMotion.matches && finePointer.matches) {
+    atmos.forEach((atmo) => {
+      const area = atmo.parentElement;
+      let pending = 0;
+      area.addEventListener('pointermove', (event) => {
+        window.cancelAnimationFrame(pending);
+        pending = window.requestAnimationFrame(() => {
+          const rect = area.getBoundingClientRect();
+          const ax = (event.clientX - rect.left) / rect.width - 0.5;
+          const ay = (event.clientY - rect.top) / rect.height - 0.5;
+          atmo.style.transform = `translate(${(ax * -46).toFixed(1)}px, ${(ay * -46).toFixed(1)}px)`;
         });
       });
-    }
+      area.addEventListener('pointerleave', () => {
+        window.cancelAnimationFrame(pending);
+        atmo.style.transform = 'translate(0px, 0px)';
+      });
+    });
   }
 
   // ---------- Reveals: as the element reaches the screen, it rises into place by itself ----------
@@ -373,8 +414,13 @@
   // hidden from then on, out of sight, and revealed as it comes (site.css: .reveals-ready).
   const isOnFirstScreen = (element) => element.getBoundingClientRect().top < window.innerHeight;
   if ('ViewWatcher' in window && !reduceMotion.matches) {
-    revealItems.filter(isOnFirstScreen).forEach((item) => item.classList.add('is-visible'));
-    root.classList.add('reveals-ready');
+    // Sorted at the first frame, once the page is laid out (read while the script starts, the places
+    // had the browser lay the page out early).
+    window.requestAnimationFrame(() => {
+      revealItems.filter(isOnFirstScreen).forEach((item) => item.classList.add('is-visible'));
+      root.classList.add('reveals-ready');
+      revealItems.forEach((item) => revealObserver.observe(item));
+    });
     const reveal = (items) => items.forEach((item, index) => {
       const hasOwnDelay = item.style.getPropertyValue('--reveal-delay') !== '';
       if (!hasOwnDelay) {
@@ -386,7 +432,6 @@
     const revealObserver = new ViewWatcher((entries) => {
       reveal(entries.filter((entry) => entry.isIntersecting).map((entry) => entry.target));
     }, { rootMargin: '0px 0px 6% 0px', threshold: 0 });
-    revealItems.forEach((item) => revealObserver.observe(item));
     // At the very end of the page, what is still waiting at the bottom of the screen shows too.
     scrollTasks.push(() => {
       const isAtEnd = view.y >= view.maxScroll - 2;
@@ -451,17 +496,19 @@
       const group = holder.closest('[data-focus], .hero__title-main') || holder;
       focusGroups.set(group, [...(focusGroups.get(group) || []), holder]);
     });
-    focusGroups.forEach((holders, group) => {
+    // Sorted at the first frame, once the page is laid out and its first animations have begun
+    // (asked while the script starts, places and animations had the browser work out the whole page
+    // early: over a second on a slow computer).
+    window.requestAnimationFrame(() => focusGroups.forEach((holders, group) => {
       const isLaterTitle = group.matches('[data-focus]') && !group.closest('.page-head');
       if (isLaterTitle && isOnFirstScreen(group)) {
         group.classList.add('is-focused');
         holders.forEach((holder) => holder.classList.add('is-arrived'));
       } else if (!hasBegun(holders[0])) {
-        // (The first word begins first: asking it alone spares asking the animations of every word,
-        // which made the browser work out the styles of each, while the page was starting.)
+        // (The first word begins first: asking it alone spares asking the animations of every word.)
         holders.forEach(addFocusCopy);
       }
-    });
+    }));
   }
   playOnce('[data-focus]', 'is-focused', { rootMargin: '0px 0px 3% 0px' });
 
@@ -510,16 +557,16 @@
   // digit (each digit in its own clip; screen readers keep the plain number).
   const DRAWN_ICONS = '.visit__icon, .care-card__icon, .exam__icon, .team-role__icon, .after__icon, .team-photo__icon, .doc__icon';
   document.querySelectorAll(DRAWN_ICONS).forEach((holder) => holder.setAttribute('data-draw', ''));
-  playOnce('[data-draw]', 'is-drawn', { rootMargin: '0px 0px -10% 0px' });
+  playOnce('[data-draw]', 'is-traced', { rootMargin: '0px 0px -10% 0px' });
   playOnce('.label', 'is-in', { rootMargin: '0px 0px -6% 0px' });
   playOnce('[data-atmo]', 'is-drawn', { threshold: 0.12 });
   // Once a large drawing of the surgeries page has drawn itself, it keeps its last look without its
   // animations (.is-settled): held at their end, they kept hundreds of layers alive in the browser.
   document.querySelectorAll('[data-atmo]').forEach((atmo) => {
-    // Only the drawing's own animations count (not the drift of the drawing, started again by the
-    // scroll).
+    // Only the animations of the lines count: the drift of the drawing itself follows the scroll and
+    // never ends while it is on screen (waited for, the drawing never settled).
     const settle = () => window.requestAnimationFrame(() => {
-      const drawing = atmo.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSAnimation);
+      const drawing = atmo.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSAnimation && animation.effect?.target !== atmo);
       Promise.allSettled(drawing.map((animation) => animation.finished)).then(() => atmo.classList.add('is-settled'));
     });
     if (atmo.classList.contains('is-drawn')) {
@@ -709,7 +756,8 @@
     };
     // The inside of the eye makes small movements (saccades) now and then, a little toward the
     // height of the light; the floaters follow late (the stylesheet). The turn is given to the parts
-    // that turn, not to the whole drawing (which the browser would work out again each time).
+    // that turn, not to the whole drawing, and as their transform itself: a custom property set on
+    // them would make the browser work out again everything inside them.
     const globe = figure.querySelector('.lamp__globe');
     const turning = [...figure.querySelectorAll('.lamp__globe, .lamp__markers, .lamp-floaters')];
     let saccadeTimer = 0;
@@ -718,8 +766,10 @@
       if (globe && view.classList.contains('is-alive')) {
         saccadeTimer = window.setTimeout(() => {
           const towardLight = ((SIZE / 2 - position[1]) / REACH) * 1.4;
-          const turn = `${(towardLight + (Math.random() * 2 - 1) * 1.6).toFixed(2)}deg`;
-          turning.forEach((part) => part.style.setProperty('--turn', turn));
+          const turn = `rotate(${(towardLight + (Math.random() * 2 - 1) * 1.6).toFixed(2)}deg)`;
+          turning.forEach((part) => {
+            part.style.transform = turn;
+          });
           moveNowAndThen();
         }, 1400 + Math.random() * 2200);
       }
@@ -757,8 +807,8 @@
       }
       const dx = position[0] - pupilAt[0];
       const dy = position[1] - pupilAt[1];
-      gaze.style.translate = `${(dx * 0.1).toFixed(2)}px ${(dy * 0.06).toFixed(2)}px`;
-      catchlight?.style.setProperty('translate', `${(dx * 0.05).toFixed(2)}px ${(dy * 0.05).toFixed(2)}px`);
+      gaze.style.transform = `translate(${(dx * 0.1).toFixed(2)}px, ${(dy * 0.06).toFixed(2)}px)`;
+      catchlight?.style.setProperty('transform', `translate(${(dx * 0.05).toFixed(2)}px, ${(dy * 0.05).toFixed(2)}px)`);
     };
 
     // The light goes where it is sent: the stylesheet glides it there, and the gaze with it
@@ -902,37 +952,50 @@
         runTour();
         updateLife();
       }, { threshold: 0.35 }).observe(figure);
+      // Far from the screen (half a screen away, .is-far, from the start), nothing in the drawing
+      // has an animation at all: paused, they would keep their layers, which every frame of the
+      // rest of the page has to go through.
+      new ViewWatcher((entries) => {
+        view.classList.toggle('is-far', !entries[0].isIntersecting);
+      }, { rootMargin: '50%' }).observe(figure);
     }
     light();
   });
 
   // ---------- Glasses: a lens sharpens the reading chart ----------
   document.querySelectorAll('[data-chart]').forEach((chart) => {
+    const blur = chart.querySelector('.chart__layer--blur');
     const sharp = chart.querySelector('.chart__layer--sharp');
-    const ring = chart.querySelector('.chart__lens');
+    const lens = chart.querySelector('.chart__lens');
     const state = { x: 0, y: 0 };
     const target = { x: 0, y: 0 };
     // The sizes of the chart, measured when it changes size rather than at every frame.
-    const box = { width: 0, height: 0, sharpLeft: 0, sharpTop: 0 };
+    const box = { width: 0, height: 0, radius: 0 };
     let isRunning = false;
     let pointerInside = false;
     let startTime = performance.now();
 
-    // The lens is given to the sharp layer (which shows inside it) and to its ring only.
+    // The lens goes to its place and its letters the other way, by transforms written as such (a
+    // custom property would have the browser work out all the letters again at every frame).
     const paint = () => {
-      sharp.style.setProperty('--lens-x', `${(state.x - box.sharpLeft).toFixed(1)}px`);
-      sharp.style.setProperty('--lens-y', `${(state.y - box.sharpTop).toFixed(1)}px`);
-      ring?.style.setProperty('--cpx', `${state.x.toFixed(1)}px`);
-      ring?.style.setProperty('--cpy', `${state.y.toFixed(1)}px`);
+      const left = (state.x - box.radius).toFixed(1);
+      const top = (state.y - box.radius).toFixed(1);
+      lens.style.transform = `translate(${left}px, ${top}px)`;
+      sharp.style.transform = `translate(${-left}px, ${-top}px)`;
     };
     const measureChart = () => {
       box.width = chart.clientWidth;
       box.height = chart.clientHeight;
-      box.sharpLeft = sharp.offsetLeft;
-      box.sharpTop = sharp.offsetTop;
-      const radius = `${clamp(box.width * 0.17, 62, 104).toFixed(1)}px`;
-      sharp.style.setProperty('--lens-r', radius);
-      ring?.style.setProperty('--cr', radius);
+      box.radius = clamp(box.width * 0.17, 62, 104);
+      const diameter = `${(box.radius * 2).toFixed(1)}px`;
+      lens.style.width = diameter;
+      lens.style.height = diameter;
+      // The sharp letters in the place and width of the blurred ones.
+      const chartBox = chart.getBoundingClientRect();
+      const blurBox = blur.getBoundingClientRect();
+      sharp.style.left = `${(blurBox.left - chartBox.left).toFixed(2)}px`;
+      sharp.style.top = `${(blurBox.top - chartBox.top).toFixed(2)}px`;
+      sharp.style.width = `${blurBox.width.toFixed(2)}px`;
     };
 
     const restPosition = () => ({ x: box.width * 0.32, y: box.height * 0.24 });
@@ -1021,7 +1084,7 @@
   if (trial && finePointer.matches && !reduceMotion.matches) {
     const area = trial.closest('section') || trial;
     const readout = trial.querySelector('[data-trial-readout]');
-    const labels = [...trial.querySelectorAll('.trial__scale--cyl .trial__deg')];
+    const labels = [...trial.querySelectorAll('.trial__degs--cyl .trial__deg')];
     const shines = [...trial.querySelectorAll('.trial__shine')];
     // The angle is given to the parts that turn, not to the whole frame.
     const turning = [...trial.querySelectorAll('.trial__axis, .trial__marker')];
@@ -1030,13 +1093,25 @@
     let goal = 45;
     let frame = 0;
     let lastTime = 0;
+    // The axis read is written into its text itself, and only when it changes: a new text node at
+    // every frame made the browser work out again the page's rules that look inside it (:has()).
+    const readoutText = readout.firstChild;
+    let shownAxis = -1;
+    // (Turns, leans and glints are written as such, not through custom properties: one written on
+    // the frame made the browser work out all its lines again, at every move of the pointer.)
     const paint = () => {
       const angle = `${(45 - axis).toFixed(2)}deg`;
-      turning.forEach((part) => part.style.setProperty('--trial-axis', angle));
+      turning.forEach((part) => {
+        part.style.rotate = angle;
+      });
       const shown = Math.round(((axis % 180) + 180) % 180);
-      readout.textContent = `Axe ${shown}°`;
-      const nearest = Math.round(shown / 30) * 30;
-      labels.forEach((label) => label.classList.toggle('is-near', Number(label.dataset.deg) === nearest));
+      const isNewAxis = shown !== shownAxis;
+      if (isNewAxis) {
+        shownAxis = shown;
+        readoutText.data = `Axe ${shown}°`;
+        const nearest = Math.round(shown / 30) * 30;
+        labels.forEach((label) => label.classList.toggle('is-near', Number(label.dataset.deg) === nearest));
+      }
     };
     const turn = (now) => {
       frame = 0;
@@ -1063,11 +1138,9 @@
       const rect = trial.getBoundingClientRect();
       const nx = clamp((event.clientX - rect.left) / rect.width - 0.5, -0.8, 0.8);
       const ny = clamp((event.clientY - rect.top) / rect.height - 0.5, -0.8, 0.8);
-      trial.style.setProperty('--trial-ry', `${(nx * 10).toFixed(2)}deg`);
-      trial.style.setProperty('--trial-rx', `${(-ny * 8).toFixed(2)}deg`);
+      trial.style.transform = `perspective(1400px) rotateX(${(-ny * 8).toFixed(2)}deg) rotateY(${(nx * 10).toFixed(2)}deg)`;
       shines.forEach((shine) => {
-        shine.style.setProperty('--gx', `${(-nx * 26).toFixed(1)}px`);
-        shine.style.setProperty('--gy', `${(-ny * 22).toFixed(1)}px`);
+        shine.style.transform = `translate(${(-nx * 26).toFixed(1)}px, ${(-ny * 22).toFixed(1)}px)`;
       });
       if (!frame) {
         lastTime = performance.now();
@@ -1075,11 +1148,9 @@
       }
     });
     area.addEventListener('pointerleave', () => {
-      trial.style.setProperty('--trial-ry', '0deg');
-      trial.style.setProperty('--trial-rx', '0deg');
+      trial.style.removeProperty('transform');
       shines.forEach((shine) => {
-        shine.style.setProperty('--gx', '0px');
-        shine.style.setProperty('--gy', '0px');
+        shine.style.transform = 'translate(0px, 0px)';
       });
     });
   }
@@ -1149,15 +1220,23 @@
     let current = START;
     let offer = [];
     let turn = 0;
+    // The blur of each window and the turn of the dials are written on them as such: a custom
+    // property on the game made the browser work out its 250 elements again at each choice.
+    const charts = lenses.map((lens) => lens.querySelector('.phoropter__chart'));
+    const dials = [...game.querySelectorAll('.phoropter__dial')];
 
     const paint = () => {
-      lenses.forEach((lens, index) => lens.style.setProperty('--blur', `${Math.min(9, (offer[index] / STEP) * BLUR_PER_STEP).toFixed(2)}px`));
+      charts.forEach((chart, index) => {
+        chart.style.filter = `blur(${Math.min(9, (offer[index] / STEP) * BLUR_PER_STEP).toFixed(2)}px)`;
+      });
       const done = clamp(Math.round((START - current) / STEP), 0, rounds.length);
       rounds.forEach((round, index) => round.classList.toggle('is-done', index < done));
     };
     const click = () => {
       turn += 1;
-      game.style.setProperty('--turn', String(turn));
+      dials.forEach((dial) => {
+        dial.style.transform = `rotate(${turn * 40}deg)`;
+      });
       game.classList.remove('is-turning');
       void game.offsetWidth;
       game.classList.add('is-turning');
@@ -1237,13 +1316,18 @@
       article.top = pageTop(articleBody);
       article.height = articleBody.offsetHeight || 1;
       article.list = list?.offsetHeight || 0;
+      if (hasTimelineScope) {
+        write(list, '--list-h', `${article.list}px`);
+      }
     });
-    slowTasks.push(() => {
-      const read = clamp((view.height * 0.4 - (article.top - view.y)) / article.height, 0, 1);
-      toc.style.setProperty('--read', read.toFixed(3));
-      // The point of the reader, in pixels down the list (moved by translate, see the stylesheet).
-      toc.style.setProperty('--read-y', `${(read * article.list).toFixed(1)}px`);
-    });
+    if (!hasTimelineScope) {
+      decorTasks.push(() => {
+        const read = clamp((view.height * 0.4 - (article.top - view.y)) / article.height, 0, 1);
+        write(toc, '--read', read.toFixed(3));
+        // The point of the reader, in pixels down the list (moved by translate, see the stylesheet).
+        write(toc, '--read-y', `${(read * article.list).toFixed(1)}px`);
+      });
+    }
   }
 
   // ---------- Detailed journeys: the line fills up to the end of the last step ----------
@@ -1259,11 +1343,12 @@
       places.steps = steps.map(pageTop);
       places.stations = stations.map(pageTop);
     });
-    slowTasks.push(() => {
+    (hasViewInset ? scrollTasks : decorTasks).push(() => {
       // The line reaches the point at 45 % of the height of the screen (in the page).
       const anchor = view.y + view.height * 0.45;
-      const progress = clamp((anchor - places.top) / places.height, 0, 1);
-      fill?.style.setProperty('--fill', progress.toFixed(4));
+      if (!hasViewInset) {
+        write(fill, '--fill', clamp((anchor - places.top) / places.height, 0, 1).toFixed(4));
+      }
       let current = -1;
       places.steps.forEach((top, i) => {
         if (top < anchor) {
@@ -1286,6 +1371,9 @@
     const maxAngle = Number(item.dataset.tilt) || 6;
     const followsSection = item.dataset.tiltArea === 'section';
     const area = (followsSection && item.closest('section')) || item;
+    // The light on the glass of the loupe follows the pointer on an element of its own, without
+    // children (see the stylesheet).
+    const glare = item.querySelector('.loupe__glare');
     let pending = 0;
 
     area.addEventListener('pointermove', (event) => {
@@ -1297,14 +1385,15 @@
         item.classList.add('is-tilting');
         item.style.setProperty('--ry', `${(clamp((x - 0.5) * 2, -1, 1) * maxAngle).toFixed(2)}deg`);
         item.style.setProperty('--rx', `${(clamp((0.5 - y) * 2, -1, 1) * maxAngle).toFixed(2)}deg`);
-        item.style.setProperty('--gx', `${(clamp(x, 0, 1) * 100).toFixed(1)}%`);
-        item.style.setProperty('--gy', `${(clamp(y, 0, 1) * 100).toFixed(1)}%`);
+        glare?.style.setProperty('--gx', `${(clamp(x, 0, 1) * 100).toFixed(1)}%`);
+        glare?.style.setProperty('--gy', `${(clamp(y, 0, 1) * 100).toFixed(1)}%`);
       });
     });
     area.addEventListener('pointerleave', () => {
       window.cancelAnimationFrame(pending);
       item.classList.remove('is-tilting');
-      ['--rx', '--ry', '--gx', '--gy'].forEach((name) => item.style.removeProperty(name));
+      ['--rx', '--ry'].forEach((name) => item.style.removeProperty(name));
+      ['--gx', '--gy'].forEach((name) => glare?.style.removeProperty(name));
     });
   });
 
@@ -1326,6 +1415,13 @@
     // A step chosen by the visitor is announced; the steps of the autoplay are not (a screen reader
     // would be interrupted every three seconds).
     schema.style.setProperty('--step-duration', `${duration}ms`);
+    // Far from the screen (half a screen away, .is-far), what loops in the drawing has no animation
+    // at all: paused, it kept its layers, which every frame of the rest of the page went through.
+    if ('ViewWatcher' in window) {
+      new ViewWatcher((entries) => {
+        schema.classList.toggle('is-far', !entries[0].isIntersecting);
+      }, { rootMargin: '50%' }).observe(schema);
+    }
     const show = (next, isChosen = false) => {
       const isSameStep = next === step;
       step = next;
@@ -1403,6 +1499,9 @@
       schema.classList.toggle('is-visible', isVisible);
       if (isVisible) {
         show(step);
+      } else {
+        // Off screen, the bars and rings of the step stop with the timer.
+        root.classList.remove('is-timing');
       }
       schedule();
     };
@@ -1483,7 +1582,13 @@
   // Scrolling only scrolls the page. A step jumps to it and pauses; the button plays again.
   const playSteps = (root, { buttons, playButton, onShow = () => {} }) => {
     const schema = root.querySelector('[data-schema]');
-    const duration = parseFloat(getComputedStyle(root).getPropertyValue('--film-duration')) * 1000 || 3000;
+    // The length of a step is read once, as the steps first come on screen: read as the script
+    // started, it made the browser work out the style of the whole page there and then, once for
+    // each chapter.
+    let duration = 0;
+    const readDuration = () => {
+      duration = duration || parseFloat(getComputedStyle(root).getPropertyValue('--film-duration')) * 1000 || 3000;
+    };
     let step = 1;
     let timer = 0;
     let isPlaying = true;
@@ -1547,17 +1652,25 @@
     if ('ViewWatcher' in window) {
       new ViewWatcher((entries) => {
         isVisible = entries[0].isIntersecting;
+        if (isVisible) {
+          readDuration();
+        }
         show(step);
         schedule();
       }, { threshold: 0.35 }).observe(root);
     } else {
       isVisible = true;
+      readDuration();
     }
     setPlaying(isPlaying);
   };
 
   // Surgeries page: the list of the chapter shows every step, the one playing stands out (on phones
   // its text is shown under the drawing).
+  // On a wide screen, the text of the step playing opens under its title by translate (site.css):
+  // the heights it needs are measured here, once laid out, and again when they change (fonts, text
+  // enlarged, a resized window), never while the steps play.
+  const wideSteps = window.matchMedia('(min-width: 1200px)');
   document.querySelectorAll('[data-chapter]').forEach((chapter) => {
     const buttons = [...chapter.querySelectorAll('[data-chapter-step]')];
     const captions = [...chapter.querySelectorAll('[data-chapter-caption]')];
@@ -1567,6 +1680,31 @@
         playButton: chapter.querySelector('[data-chapter-play]'),
         onShow: (step) => captions.forEach((caption, index) => caption.classList.toggle('is-active', index + 1 === step)),
       });
+    }
+    const list = chapter.querySelector('.chapter__steps');
+    const items = list ? [...list.children] : [];
+    const texts = items.map((item) => item.querySelector('.chapter-step__more'));
+    const measureSteps = () => {
+      if (!wideSteps.matches || !items.length) {
+        return;
+      }
+      // (All read, then all written.) A piece of rail runs from 3.4rem under the top of its step to
+      // 0.3rem under its bottom (site.css).
+      const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
+      const heights = texts.map((text) => text?.offsetHeight || 0);
+      const rails = items.map((item) => item.offsetHeight - 3.1 * rem);
+      heights.forEach((height, i) => list.style.setProperty(`--h${i + 1}`, `${height}px`));
+      list.style.setProperty('--h-max', `${Math.max(...heights)}px`);
+      items.forEach((item, i) => {
+        item.style.setProperty('--own', `${heights[i]}px`);
+        item.style.setProperty('--grow', rails[i] > 0 ? ((rails[i] + heights[i]) / rails[i]).toFixed(4) : '1');
+      });
+    };
+    if (list && 'ResizeObserver' in window) {
+      const sizes = new ResizeObserver(measureSteps);
+      // (Not the list itself: its room below, written here, would report it again in the same frame.)
+      [...items, ...texts.filter(Boolean)].forEach((element) => sizes.observe(element));
+      wideSteps.addEventListener('change', measureSteps);
     }
   });
 
@@ -1700,9 +1838,14 @@
     area.addEventListener('pointermove', (event) => {
       window.cancelAnimationFrame(pending);
       pending = window.requestAnimationFrame(() => {
-        letters.forEach((letter) => {
+        // All the places read before any letter changes: each change would have the next reading
+        // work out the styles again.
+        const centres = letters.map((letter) => {
           const rect = letter.getBoundingClientRect();
-          const distance = event.clientX - (rect.left + rect.width / 2);
+          return rect.left + rect.width / 2;
+        });
+        letters.forEach((letter, index) => {
+          const distance = event.clientX - centres[index];
           letter.style.setProperty('--lift', Math.exp(-(distance * distance) / 18000).toFixed(3));
         });
       });

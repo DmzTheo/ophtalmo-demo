@@ -64,6 +64,47 @@ const CASES = {
   8: [[2, 3]], 9: [[0, 2]], 10: [[0, 1], [2, 3]], 11: [[1, 2]], 12: [[1, 3]], 13: [[0, 1]], 14: [[0, 3]],
 };
 
+// The names of the places, in the order of the scene (the towns first).
+const NAMES = [...Object.values(TOWNS).map((town) => ({ text: town.name, isTown: true })), { text: 'Étang de Berre' }, { text: 'La Crau' }];
+
+// The colours of the site it takes (read by the page, scene3d.js).
+export const tokens = ['--c-blue', '--c-teal-ink', '--c-amber-ink', '--c-sun'];
+
+// On the page: the names of the places over the map, where the scene puts them; a name that has not
+// moved is not written again.
+export function page(stage) {
+  let labels = null;
+  return ({ reveal, places }) => {
+    if (!labels) {
+      const layer = document.createElement('div');
+      layer.className = 'scene3d__labels';
+      layer.setAttribute('aria-hidden', 'true');
+      labels = NAMES.map(({ text, isTown }) => {
+        const element = document.createElement('span');
+        element.className = `scene3d__label${isTown ? ' scene3d__label--town' : ''}`;
+        element.textContent = text;
+        layer.append(element);
+        return { element };
+      });
+      stage.append(layer);
+    }
+    labels.forEach((label, i) => {
+      const x = places[2 * i];
+      const y = places[2 * i + 1];
+      const hasMoved = !(Math.abs(x - label.x) < 0.3 && Math.abs(y - label.y) < 0.3);
+      if (hasMoved) {
+        label.x = x;
+        label.y = y;
+        label.element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+      }
+      if (reveal !== label.reveal) {
+        label.reveal = reveal;
+        label.element.style.opacity = String(reveal);
+      }
+    });
+  };
+}
+
 export function create(THREE, kit) {
   const ink = createInk(THREE);
   const scene = new THREE.Scene();
@@ -302,36 +343,28 @@ export function create(THREE, kit) {
   const travellerRing = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.26, 32), new THREE.MeshBasicMaterial({ color: ROUTE, transparent: true, opacity: 0, depthWrite: false }));
   map.add(traveller, travellerRing);
 
-  // ---------- Names of the places (drawn by the page, over the map) ----------
+  // ---------- Names of the places (written by the page over the map, page(); same order) ----------
   const labels = [
-    ...pins.map((pin) => ({ text: pin.town.name, at: () => map.localToWorld(pin.headObject.position.clone().add(new THREE.Vector3(0, 0.45, 0))), isTown: true })),
-    { text: 'Étang de Berre', at: () => map.localToWorld(new THREE.Vector3(LAKE.x + 0.2, WATER, LAKE.z + 0.4)) },
-    { text: 'La Crau', at: () => map.localToWorld(new THREE.Vector3(-6.2, 0.6, 3.6)) },
+    ...pins.map((pin) => ({ at: () => map.localToWorld(pin.headObject.position.clone().add(new THREE.Vector3(0, 0.45, 0))) })),
+    { at: () => map.localToWorld(new THREE.Vector3(LAKE.x + 0.2, WATER, LAKE.z + 0.4)) },
+    { at: () => map.localToWorld(new THREE.Vector3(-6.2, 0.6, 3.6)) },
   ];
-  const layer = document.createElement('div');
-  layer.className = 'scene3d__labels';
-  layer.setAttribute('aria-hidden', 'true');
-  labels.forEach((label) => {
-    label.element = document.createElement('span');
-    label.element.className = `scene3d__label${label.isTown ? ' scene3d__label--town' : ''}`;
-    label.element.textContent = label.text;
-    layer.append(label.element);
-  });
-  kit.stage.append(layer);
   let width = 1;
   let height = 1;
   const projected = new THREE.Vector3();
   // The names follow the map ten times a second at most once they have appeared (the map turns so
   // slowly that a name moves less than a pixel between two writes), at every frame while the pointer
-  // leans the map; a name that has not moved is not written again. (Written at every frame, they had
+  // leans the map; names that have not moved are not sent again. (Written at every frame, they had
   // the whole page drawn again at every frame: a third of the work of a phone at rest on this page.)
   let lastPlaced = -Infinity;
+  let sentReveal = null;
   const placeLabels = (reveal, isLeaning) => {
     const now = performance.now();
     if (reveal >= 1 && !isLeaning && now - lastPlaced < 100) {
       return;
     }
     lastPlaced = now;
+    let hasChanged = reveal !== sentReveal;
     labels.forEach((label) => {
       projected.copy(label.at()).project(camera);
       const x = ((projected.x + 1) / 2) * width;
@@ -340,18 +373,20 @@ export function create(THREE, kit) {
       if (hasMoved) {
         label.x = x;
         label.y = y;
-        label.element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
-      }
-      if (reveal !== label.reveal) {
-        label.reveal = reveal;
-        label.element.style.opacity = String(reveal);
+        hasChanged = true;
       }
     });
+    if (hasChanged) {
+      sentReveal = reveal;
+      kit.send({ reveal, places: labels.flatMap((label) => [label.x, label.y]) });
+    }
   };
 
   const resize = (w, h) => {
     width = w;
     height = h;
+    // A new size places the names again at the next frame (a size message can follow another closely).
+    lastPlaced = -Infinity;
     camera.aspect = w / h;
     // The map, seen from above at an angle, fills the scene.
     const fit = R * 0.9;

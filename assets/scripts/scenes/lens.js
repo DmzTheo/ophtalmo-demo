@@ -54,7 +54,40 @@ function drawPower(canvas, power) {
   ctx.restore();
 }
 
-// Lit by the photographer's studio of scene3d.js (made before the scene, at its own calm moment).
+const FAMILY = '"Atkinson Hyperlegible Next", system-ui, sans-serif';
+const FONTS = [`700 120px ${FAMILY}`, '700 72px "Atkinson Hyperlegible Mono"'];
+const PICTURES = {
+  chart: [1024, 1300, (canvas) => drawChart(canvas, FAMILY)],
+  plus: [128, 512, (canvas) => drawPower(canvas, '+2.00')],
+  minus: [128, 512, (canvas) => drawPower(canvas, '−2.00')],
+};
+
+// On the page: the chart and the two powers of the handle, drawn by the page, which has the fonts of
+// the site (a worker has none), and drawn again once the fonts are there (not when they already were).
+export function page(stage, send) {
+  const paint = () => {
+    const names = Object.keys(PICTURES);
+    Promise.all(names.map((name) => {
+      const [width, height, draw] = PICTURES[name];
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      draw(canvas);
+      return typeof createImageBitmap === 'function' ? createImageBitmap(canvas) : canvas;
+    })).then((pictures) => {
+      const bitmaps = pictures.filter((picture) => !(picture instanceof HTMLCanvasElement));
+      send({ pictures: Object.fromEntries(names.map((name, i) => [name, pictures[i]])) }, bitmaps);
+    }).catch(() => {});
+  };
+  paint();
+  const isFontMissing = Boolean(document.fonts) && !FONTS.every((font) => document.fonts.check(font));
+  if (isFontMissing) {
+    Promise.all(FONTS.map((font) => document.fonts.load(font))).then(paint).catch(() => {});
+  }
+  return null;
+}
+
+// Lit by the photographer's studio of scene3d-draw.js (made before the scene, at its own calm moment).
 export const usesStudio = true;
 
 export function create(THREE, kit) {
@@ -67,25 +100,11 @@ export function create(THREE, kit) {
   scene.environment = kit.environment();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 100);
 
-  // ---------- The chart, a stiff card ----------
-  const chartCanvas = document.createElement('canvas');
-  chartCanvas.width = 1024;
-  chartCanvas.height = 1300;
-  const family = '"Atkinson Hyperlegible Next", system-ui, sans-serif';
-  const font = `700 120px ${family}`;
-  drawChart(chartCanvas, family);
+  // ---------- The chart, a stiff card (its picture comes from the page) ----------
+  const chartCanvas = kit.canvas(1024, 1300);
   const chart = new THREE.CanvasTexture(chartCanvas);
   chart.colorSpace = THREE.SRGBColorSpace;
   chart.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  // Drawn again with the font of the site once it is there (not when it already was).
-  const hasFont = document.fonts ? document.fonts.check(font) : true;
-  if (!hasFont) {
-    document.fonts.load(font).then(() => {
-      drawChart(chartCanvas, family);
-      chart.needsUpdate = true;
-      kit.wake();
-    }).catch(() => {});
-  }
   const edge = new THREE.MeshStandardMaterial({ color: '#e9e2d4', roughness: 0.9 });
   const card = new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_H, 0.06), [edge, edge, edge, edge, new THREE.MeshStandardMaterial({ map: chart, roughness: 0.85 }), edge]);
   card.receiveShadow = true;
@@ -135,10 +154,7 @@ export function create(THREE, kit) {
   const metal = new THREE.MeshStandardMaterial({ color: '#b8bdc5', metalness: 1, roughness: 0.3, envMapIntensity: 1.2 });
   const rim = new THREE.Mesh(new THREE.TorusGeometry(LENS_R + 0.03, 0.075, 18, 120), metal);
   rim.castShadow = true;
-  const powerCanvas = document.createElement('canvas');
-  powerCanvas.width = 128;
-  powerCanvas.height = 512;
-  drawPower(powerCanvas, '+2.00');
+  const powerCanvas = kit.canvas(128, 512);
   const powerTexture = new THREE.CanvasTexture(powerCanvas);
   powerTexture.colorSpace = THREE.SRGBColorSpace;
   const handle = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.7, 0.07), [metal, metal, metal, metal, new THREE.MeshStandardMaterial({ map: powerTexture, metalness: 0.8, roughness: 0.35 }), metal]);
@@ -154,9 +170,7 @@ export function create(THREE, kit) {
 
   // Where the lens brings the light to a point (converging) or spreads it (diverging): a glow on the
   // chart, below the lens, a little away from the sun.
-  const glowCanvas = document.createElement('canvas');
-  glowCanvas.width = 128;
-  glowCanvas.height = 128;
+  const glowCanvas = kit.canvas(128, 128);
   const glowContext = glowCanvas.getContext('2d');
   const gradient = glowContext.createRadialGradient(64, 64, 0, 64, 64, 64);
   gradient.addColorStop(0, 'rgba(255, 246, 220, 1)');
@@ -169,6 +183,26 @@ export function create(THREE, kit) {
   const caustic = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   caustic.position.z = 0.035;
   scene.add(caustic);
+
+  // ---------- The pictures drawn by the page: the chart, the power of the lens on its handle ----------
+  let pictures = null;
+  let shownPower = '+2.00';
+  const showPower = () => {
+    powerCanvas.getContext('2d').drawImage(shownPower === '+2.00' ? pictures.plus : pictures.minus, 0, 0);
+    powerTexture.needsUpdate = true;
+  };
+  let hasPictures = null;
+  const ready = new Promise((resolve) => {
+    hasPictures = resolve;
+  });
+  kit.listen((message) => {
+    ({ pictures } = message);
+    chartCanvas.getContext('2d').drawImage(pictures.chart, 0, 0);
+    chart.needsUpdate = true;
+    showPower();
+    hasPictures();
+    kit.wake();
+  });
 
   // ---------- Light ----------
   scene.add(new THREE.HemisphereLight('#ffffff', '#d8cbb3', 0.7));
@@ -194,7 +228,6 @@ export function create(THREE, kit) {
   const cardPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -LIFT * 0.4);
   const hit = new THREE.Vector3();
   const pointerSpot = new THREE.Vector2();
-  let shownPower = '+2.00';
 
   const update = ({ time, pointer }) => {
     // Its path over the chart, reading a row then another; or where the pointer is.
@@ -216,8 +249,7 @@ export function create(THREE, kit) {
     const power = toDiverging > 0.5 ? '−2.00' : '+2.00';
     if (power !== shownPower) {
       shownPower = power;
-      drawPower(powerCanvas, power);
-      powerTexture.needsUpdate = true;
+      showPower();
     }
     const focus = 1 - toDiverging;
     caustic.position.x = trial.position.x + 0.32;
@@ -227,5 +259,5 @@ export function create(THREE, kit) {
     return false;
   };
 
-  return { scene, camera, resize, update };
+  return { scene, camera, resize, update, ready };
 }

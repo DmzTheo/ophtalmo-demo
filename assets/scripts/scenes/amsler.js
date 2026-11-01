@@ -15,6 +15,9 @@ const smooth = (a, b, t) => {
   return k * k * (3 - 2 * k);
 };
 
+// The colours of the site it takes (read by the page, scene3d.js).
+export const tokens = ['--c-gold-ink', '--c-ink', '--c-paper'];
+
 export function create(THREE, kit) {
   const ink = createInk(THREE);
   const scene = new THREE.Scene();

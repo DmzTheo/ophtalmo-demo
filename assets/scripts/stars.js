@@ -35,6 +35,12 @@
   softCtx.fillStyle = softGradient;
   softCtx.fillRect(0, 0, 64, 64);
 
+  // The height of the window, read when first needed and after each resize (not at each move).
+  let viewHeight = 0;
+  window.addEventListener('resize', () => {
+    viewHeight = 0;
+  });
+
   hosts.forEach((host, hostIndex) => {
     let canvas = null;
     let ctx = null;
@@ -46,11 +52,17 @@
     let ink = '#1d4fa3';
     let frame = 0;
     let last = 0;
+    // Where the canvas was last moved to, and the part of it drawn at the last frame (only that part
+    // is cleared at the next one).
+    let shownTop = null;
+    let drawn = null;
     const startedAt = performance.now();
     const lit = new Set();
     const pointer = { x: 0, y: 0, inside: false, on: 0, movedAt: -9999 };
 
-    const bucketOf = (x, y) => `${Math.floor(x / REACH)},${Math.floor(y / REACH)}`;
+    // Stars by square of REACH, under a number key (a square of the grid, columns then rows).
+    const bucketKey = (i, j) => i * 65536 + j;
+    const bucketOf = (x, y) => bucketKey(Math.floor(x / REACH), Math.floor(y / REACH));
     // The stars: about one cell in two holds one, mostly tiny, a few larger, very few out of focus.
     const build = () => {
       const rect = host.getBoundingClientRect();
@@ -90,6 +102,15 @@
       t.globalCompositeOperation = 'source-in';
       t.fillStyle = ink;
       t.fillRect(0, 0, 64, 64);
+      // (Drawn from a bitmap, the disc no longer has to be copied from its canvas at each frame.)
+      if (window.createImageBitmap) {
+        const source = tinted;
+        createImageBitmap(source).then((bitmap) => {
+          if (tinted === source) {
+            tinted = bitmap;
+          }
+        }).catch(() => {});
+      }
     };
     const ensureCanvas = () => {
       if (!canvas) {
@@ -100,12 +121,16 @@
         ctx = canvas.getContext('2d');
         build();
       }
+      if (!viewHeight) {
+        viewHeight = window.innerHeight;
+      }
       const w = Math.round(width);
-      const h = Math.round(Math.min(height, window.innerHeight + 2));
+      const h = Math.round(Math.min(height, viewHeight + 2));
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
         canvas.style.height = `${h}px`;
+        drawn = null;
       }
     };
     const release = () => {
@@ -113,6 +138,7 @@
         canvas.width = 0;
         canvas.height = 0;
       }
+      drawn = null;
       lit.forEach((star) => {
         star.glow = 0;
       });
@@ -128,48 +154,73 @@
       pointer.on += ((pointer.inside ? 1 : 0) - pointer.on) * (1 - Math.exp(-dt * 6));
       const rect = host.getBoundingClientRect();
       const top = clamp(-rect.top, 0, Math.max(0, height - canvas.height));
-      canvas.style.transform = `translateY(${top.toFixed(1)}px)`;
+      const shown = top.toFixed(1);
+      if (shown !== shownTop) {
+        shownTop = shown;
+        canvas.style.transform = `translateY(${shown}px)`;
+      }
       const px = pointer.x - rect.left;
       const py = pointer.y - rect.top;
       // The stars in the light around the pointer brighten...
       if (pointer.inside) {
         const bx = Math.floor(px / REACH);
         const by = Math.floor(py / REACH);
+        const rise = Math.min(1, dt * 10);
         for (let i = bx - 1; i <= bx + 1; i += 1) {
           for (let j = by - 1; j <= by + 1; j += 1) {
-            (buckets.get(`${i},${j}`) || []).forEach((star) => {
+            const bucket = buckets.get(bucketKey(i, j));
+            if (!bucket) continue;
+            for (const star of bucket) {
               const light = Math.exp(-((star.x - px) ** 2 + (star.y - py) ** 2) / (REACH * REACH * 0.5));
               if (light > star.glow) {
-                star.glow += (light - star.glow) * Math.min(1, dt * 10);
+                star.glow += (light - star.glow) * rise;
                 lit.add(star);
               }
-            });
+            }
           }
         }
       }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Only the part drawn at the last frame is cleared (the stars are few, the canvas is large).
+      if (drawn) {
+        const left = Math.max(0, Math.floor(drawn[0]) - 2);
+        const up = Math.max(0, Math.floor(drawn[1]) - 2);
+        ctx.clearRect(left, up, Math.min(canvas.width, Math.ceil(drawn[2]) + 2) - left, Math.min(canvas.height, Math.ceil(drawn[3]) + 2) - up);
+      }
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
       // ...twinkle, drift a little, flee the pointer, and fade once it has gone.
       ctx.fillStyle = ink;
-      lit.forEach((star) => {
-        const d = Math.hypot(star.x - px, star.y - py);
+      const fade = Math.exp(-dt * 2.2);
+      for (const star of lit) {
+        const dx = star.x - px;
+        const dy = star.y - py;
+        const d = Math.sqrt(dx * dx + dy * dy);
         const isNear = pointer.inside && d < REACH * 1.4;
         if (!isNear) {
-          star.glow *= Math.exp(-dt * 2.2);
+          star.glow *= fade;
         }
         if (star.glow < 0.015) {
           star.glow = 0;
           lit.delete(star);
-          return;
+          continue;
         }
         const driftX = Math.sin(t * 0.6 + star.a * TAU) * 5 * star.depth;
         const driftY = Math.cos(t * 0.5 + star.b * TAU) * 5 * star.depth;
         const push = pointer.inside ? Math.exp(-(d * d) / (70 * 70)) * 26 * star.depth : 0;
         const away = d || 1;
-        const x = star.x + driftX + ((star.x - px) / away) * push;
-        const y = star.y + driftY + ((star.y - py) / away) * push - top;
-        if (y < -12 || y > canvas.height + 12) return;
+        const x = star.x + driftX + (dx / away) * push;
+        const y = star.y + driftY + (dy / away) * push - top;
+        if (y < -12 || y > canvas.height + 12) continue;
         const twinkle = 0.55 + 0.45 * Math.sin(t * (1.3 + star.a * 2) + star.b * 40);
         const alpha = Math.min(1, star.glow * twinkle);
+        // (Rays reach three times the size: the part drawn is kept that wide around each star.)
+        const extent = star.size * 3 + 1;
+        if (x - extent < minX) minX = x - extent;
+        if (x + extent > maxX) maxX = x + extent;
+        if (y - extent < minY) minY = y - extent;
+        if (y + extent > maxY) maxY = y + extent;
         if (star.isSoft) {
           ctx.globalAlpha = alpha * 0.35;
           ctx.drawImage(tinted, x - star.size, y - star.size, star.size * 2, star.size * 2);
@@ -185,7 +236,8 @@
             ctx.fillRect(x - 0.35, y - star.size * 3, 0.7, star.size * 6);
           }
         }
-      });
+      }
+      drawn = maxX > minX ? [minX, minY, maxX, maxY] : null;
       if (lit.size || pointer.on > 0.01 || now - pointer.movedAt < 300) {
         frame = window.requestAnimationFrame(render);
       }

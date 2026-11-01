@@ -106,12 +106,18 @@
     if (!conditions.isMoving) {
       return undefined;
     }
-    document.querySelectorAll(LINE_TEXTS).forEach((block) => {
-      const isBelowScreen = block.getBoundingClientRect().top > window.innerHeight;
-      if (isBelowScreen) {
-        revealLines(block);
-      }
+    // Where each text stands is known at the first frame, from the watcher (reading it here, as the
+    // page starts, made the browser lay the whole page out once more).
+    const firstLook = new ViewWatcher((entries) => {
+      entries.forEach((entry) => {
+        firstLook.unobserve(entry.target);
+        const isBelowScreen = !entry.isIntersecting && entry.boundingClientRect.top > 0;
+        if (isBelowScreen) {
+          revealLines(entry.target);
+        }
+      });
     });
+    document.querySelectorAll(LINE_TEXTS).forEach((block) => firstLook.observe(block));
     if (!conditions.hasMouse) {
       return undefined;
     }
