@@ -15065,12 +15065,12 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
    each page (_build/build.js): here, the next page could work out its styles before this stylesheet
    came, and Chrome then dropped the transition. */
 
-/* The next page opens like a pupil, over the previous one going out of focus. Only what both pages
-   show travels from one to the other: the header, which does not move, unless the page is left from
-   the menu or the header changes colours (.vt-solo: it then goes with its page); the title of an
-   operation or a disease going to its own page. Both pages name them as they are captured (the
-   script in the head of each page, _build/build.js): named here for good, a title left under the
-   open menu flew over it, and a title shown by one page only came out of the pupil. */
+/* The page left goes back into the menu button, as the menu does when it closes: a circle closing
+   on the button, over the next page. Only what both pages show travels from one to the other: the
+   header, which does not move, unless the page is left from the menu or the header changes colours
+   (.vt-solo: it then goes with its page); the title of an operation or a disease going to its own
+   page. Both pages name them as they are captured (the script in the head of each page,
+   _build/build.js): named here for good, a title left under the open menu flew over it. */
 html:not(.vt-solo) .site-header {
   view-transition-name: site-header;
 }
@@ -15082,7 +15082,7 @@ html:not(.vt-solo) .site-header {
 }
 
 /* What one page only shows (a title not found in time on the next page): it goes at once, or comes
-   as the pupil reaches it. */
+   once the page left is mostly gone. */
 ::view-transition-old(*):only-child {
   animation-duration: 0.2s;
 }
@@ -15093,26 +15093,36 @@ html:not(.vt-solo) .site-header {
   animation-fill-mode: both;
 }
 
-/* The old page goes out of focus at once. Its blur does not grow: Chrome draws each size of a blur
-   with a shader of its own, compiled the first time it is met, and a growing blur stopped the screen
-   for a tenth to a third of a second, several times over the first changes of page of a visitor. */
+/* The page left over the next one, closing as the menu closes (.menu: same circle, same time, same
+   curve). */
 ::view-transition-old(root) {
-  animation: none;
-  filter: blur(8px);
+  z-index: 1;
+  mix-blend-mode: normal;
+  animation: vt-out 0.55s var(--ease-in-out) both;
 }
 
 ::view-transition-new(root) {
-  animation: 0.6s cubic-bezier(0.55, 0, 0.2, 1) both vt-in;
+  mix-blend-mode: normal;
+  animation: none;
 }
 
-@keyframes vt-in {
+@keyframes vt-out {
   from {
-    clip-path: circle(8% at 50% 50%);
+    clip-path: circle(150% at calc(100% - 3.5rem) 2.6rem);
   }
 
   to {
-    clip-path: circle(75% at 50% 50%);
+    clip-path: circle(0 at calc(100% - 3.5rem) 2.6rem);
   }
+}
+
+/* Where the browser has no cross-page transitions but has them inside a page (Firefox), the page
+   left closes the same way before going (crossPage(), _build/build.js): under it, the page has
+   taken the colours of the next one and let its content go. The header stays where both pages show
+   it the same (it goes too when the page is left from the menu or the header changes colours). */
+.is-leaving body > :not(.site-header),
+.is-leaving.vt-solo body > * {
+  visibility: hidden;
 }
 
 /* ---------- Reduced motion ---------- */

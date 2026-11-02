@@ -26,8 +26,8 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=e8c4386d">
-  <script>(function crossPage(darkHeads) {
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=45a02fdc">
+  <script>(function crossPage(heroes) {
 const KEY = 'ophta-vt';
 const root = document.documentElement;
 const TRAVELLERS = {
@@ -58,6 +58,11 @@ named.forEach((element) => element.style.removeProperty('view-transition-name'))
 named = [];
 root.classList.remove('vt-solo');
 };
+const isSoloTo = (to) => {
+const isFromMenu = root.classList.contains('is-menu-open');
+const isDark = root.dataset.hero === 'night' || (root.dataset.hero === 'dark' && !document.querySelector('.site-header.is-scrolled'));
+return isFromMenu || isDark !== (to in heroes);
+};
 addEventListener('pageswap', (event) => {
 takeBack();
 if (!event.viewTransition || !event.activation) {
@@ -65,8 +70,7 @@ return;
 }
 const to = pathOf(event.activation.entry.url);
 const isFromMenu = root.classList.contains('is-menu-open');
-const isDark = root.dataset.hero === 'night' || (root.dataset.hero === 'dark' && !document.querySelector('.site-header.is-scrolled'));
-const isSolo = isFromMenu || isDark !== darkHeads.includes(to);
+const isSolo = isSoloTo(to);
 const name = isFromMenu ? '' : nameFor(to);
 const names = name && give(name) ? [name] : [];
 root.classList.toggle('vt-solo', isSolo);
@@ -90,7 +94,51 @@ root.classList.toggle('vt-solo', told.isSolo);
 told.names.forEach(give);
 event.viewTransition.finished.finally(takeBack);
 });
-})(["/","/chirurgies"])</script>
+const canFoldHere = !('onpagereveal' in window) && 'startViewTransition' in document;
+if (canFoldHere) {
+const hero = root.dataset.hero;
+let isLeaving = false;
+document.addEventListener('click', (event) => {
+const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+const isPlainClick = event.button === 0 && !event.defaultPrevented && !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
+const isOtherPage = Boolean(link) && link.origin === location.origin && link.pathname !== location.pathname && link.target !== '_blank' && !link.hasAttribute('download') && !/\.pdf$/i.test(link.pathname);
+const isStill = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!isPlainClick || !isOtherPage || isStill || isLeaving) {
+return;
+}
+event.preventDefault();
+isLeaving = true;
+const to = pathOf(link.href);
+const go = () => location.assign(link.href);
+fetch(link.href).catch(() => {});
+root.classList.toggle('vt-solo', isSoloTo(to));
+try {
+document.startViewTransition(() => {
+root.classList.add('is-leaving');
+if (to in heroes) {
+root.dataset.hero = heroes[to];
+} else {
+delete root.dataset.hero;
+}
+}).finished.then(go, go);
+} catch (error) {
+go();
+}
+});
+addEventListener('pageshow', (event) => {
+if (!event.persisted || !isLeaving) {
+return;
+}
+isLeaving = false;
+root.classList.remove('is-leaving', 'vt-solo');
+if (hero) {
+root.dataset.hero = hero;
+} else {
+delete root.dataset.hero;
+}
+});
+}
+})({"/":"dark","/chirurgies":"night"})</script>
   <script src="../assets/scripts/view.js?v=ace5a464" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
