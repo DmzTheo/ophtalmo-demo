@@ -18,6 +18,7 @@
   const hero = stage.closest('section') || stage;
   const canvas = stage.querySelector('canvas');
   const poster = stage.querySelector('.hero__poster') || canvas;
+  const posterImage = poster.querySelector('img');
   const readout = document.querySelector('[data-pupil-mm]');
   const trace = document.querySelector('[data-pupil-trace]');
   const playButton = document.querySelector('[data-iris-play]');
@@ -587,6 +588,8 @@
   // it rests instead of being drawn again for nothing at every frame.
   let isAway = false;
   const blursAway = window.matchMedia('(min-width: 861px)');
+  // (What the last frame drew, to blur it once the eye goes out of focus: below.)
+  let lastFrame = null;
   let lastReadout = 0;
   let lastTrace = 0;
   const startedAt = last;
@@ -690,7 +693,8 @@
       state.samples.shift();
     }
 
-    draw(now, { cx: view.cx, cy: view.cy, radius: view.radius, pupil: state.pupil, beamX: state.beamX, beam: state.beam, tiltX: state.tiltX, tiltY: state.tiltY });
+    lastFrame = { now, values: { cx: view.cx, cy: view.cy, radius: view.radius, pupil: state.pupil, beamX: state.beamX, beam: state.beam, tiltX: state.tiltX, tiltY: state.tiltY } };
+    draw(lastFrame.now, lastFrame.values);
 
     // The trace and the figure of the pupillometer change slowly: drawn 30 and 8 times a second.
     if (now - lastTrace > 0.032) {
@@ -723,6 +727,48 @@
       }
       window.requestAnimationFrame(frame);
     }
+  };
+
+  // ---------- Out of focus ----------
+  // Once the hero is mostly left behind (wide screens), the eye drifts out of focus: what it shows,
+  // its last frame (or the poster, before the iris comes alive), is blurred once into a canvas of half
+  // its size, which comes in by a fade over it (site.css). A blur that grew was worked out again at
+  // every frame, and Chrome compiled a program for each size it went through; drawn at half size,
+  // 9 px are 4.5, which shares the program of the titles' words (4 px and more, README). Not in
+  // Firefox, which blurs the eye as it grows at no cost, where the copy of the frame lost two frames
+  // (and not without the canvas filter, older Safari).
+  const AWAY_BLUR = 9;
+  const copiesSoft = !isGecko && 'filter' in CanvasRenderingContext2D.prototype;
+  if (copiesSoft) {
+    stage.classList.add('has-soft-copy');
+  }
+  let soft = null;
+  let background = '#07101d';
+  const blurOut = () => {
+    if (!soft) {
+      soft = document.createElement('canvas');
+      soft.className = 'hero__soft';
+      canvas.after(soft);
+    }
+    const width = Math.max(1, Math.round(stage.offsetWidth / 2));
+    const height = Math.max(1, Math.round(stage.offsetHeight / 2));
+    soft.width = width;
+    soft.height = height;
+    const context = soft.getContext('2d');
+    // (On the colour of the room: blurred alone, the edges of the frame would fade to nothing.)
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+    context.filter = `blur(${AWAY_BLUR / 2}px)`;
+    const isIrisShown = isLive && lastFrame;
+    if (isIrisShown) {
+      // (Drawn again so that the frame is there to copy: the browser lets it go once shown.)
+      draw(lastFrame.now, lastFrame.values);
+      context.drawImage(canvas, 0, 0, width, height);
+    } else if (posterImage?.complete && posterImage.naturalWidth) {
+      context.drawImage(posterImage, poster.offsetLeft / 2, poster.offsetTop / 2, poster.offsetWidth / 2, poster.offsetHeight / 2);
+    }
+    context.filter = 'none';
+    soft.classList.add('is-drawn');
   };
 
   const renderStill = () => {
@@ -788,6 +834,7 @@
       gl.texParameterf(gl.TEXTURE_2D, anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(isTouch ? 4 : 8, max));
     }
     const hex = getComputedStyle(stage).getPropertyValue('--c-iris-bg').trim().replace('#', '') || '07101d';
+    background = `#${hex}`;
     // Inverse of the shader's tone mapping, so that the background keeps its CSS colour.
     const channel = (index) => -Math.log(1 - parseInt(hex.slice(index * 2, index * 2 + 2), 16) / 255) / 1.25;
     gl.useProgram(program);
@@ -882,7 +929,12 @@
   if ('ViewWatcher' in window) {
     new ViewWatcher(([entry]) => {
       isVisible = entry.isIntersecting;
+      const wasAway = isAway;
       isAway = entry.intersectionRatio < 0.45 && entry.boundingClientRect.top < 0;
+      const goesOutOfFocus = copiesSoft && isAway && !wasAway && blursAway.matches && !reduceMotion;
+      if (goesOutOfFocus) {
+        blurOut();
+      }
       // (Its CSS loops pause too: far from the screen, the browser no longer leaves them to the
       // graphics chip and works them out at every frame.)
       hero.classList.toggle('is-offscreen', !isVisible);

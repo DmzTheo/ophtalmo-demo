@@ -1818,7 +1818,20 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
 }
 
 /* Once the visitor has moved on past most of the hero, the eye drifts out of focus, by itself
-   (site.js marks it; wide screens). */
+   (site.js marks it; wide screens). Where hero.js can (.has-soft-copy: not in Firefox), its last frame,
+   blurred once, comes in by a fade over it: there a blur that grew was worked out again at every frame,
+   and Chrome compiled a program for each size it went through. Firefox does such a blur at no cost,
+   while the copy of the frame lost it two frames: there the blur still grows. */
+.hero__soft {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s var(--ease-out);
+}
+
 @media (prefers-reduced-motion: no-preference) and (min-width: 861px) {
   .hero__stage {
     transition: opacity 0.9s var(--ease-out), filter 0.9s var(--ease-out), transform 0.9s var(--ease-out);
@@ -1828,6 +1841,18 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
     opacity: 0.5;
     filter: blur(9px);
     transform: scale(1.05);
+  }
+
+  .hero__stage.has-soft-copy {
+    transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out);
+  }
+
+  .hero__stage.has-soft-copy.is-away {
+    filter: none;
+  }
+
+  .hero__stage.is-away .hero__soft.is-drawn {
+    opacity: 1;
   }
 }
 
@@ -3697,12 +3722,6 @@ html:not(.js) .schema__play {
 
 .schema__svg .blind-spot {
   fill: rgba(13, 26, 43, 0.28);
-  stroke: none;
-}
-
-/* (Its opacity, 0.55, is given layer by layer for its soft edge: softShape in schemas.js.) */
-.schema__svg .loss {
-  fill: rgb(70, 82, 100);
   stroke: none;
 }
 
@@ -7789,8 +7808,22 @@ html:not(.js) .schema__play {
   overflow: clip;
   border-radius: 50%;
   background: #fff;
-  box-shadow: inset 0 0 0 2px var(--c-ink), inset 0 10px 26px rgba(13, 26, 43, 0.16);
+  box-shadow: inset 0 0 0 2px var(--c-ink);
+  isolation: isolate;
   transition: box-shadow 0.4s var(--ease-out);
+}
+
+/* The shade at the top of the window, as an inner shadow blurred by 26 px, 10 px down, would leave it
+   (a gradient whose stops follow the curve of that blur): Firefox readied a blurred inner shadow at
+   the first frame that showed one in each visit, the page stopping 0.05 s as the refractor came. */
+.phoropter__window::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle 50cqi at 50% calc(50% + 10px), rgba(13, 26, 43, 0) calc(50cqi - 39px), rgba(13, 26, 43, 0.004) calc(50cqi - 26px), rgba(13, 26, 43, 0.011) calc(50cqi - 19.5px), rgba(13, 26, 43, 0.025) calc(50cqi - 13px), rgba(13, 26, 43, 0.049) calc(50cqi - 6.5px), rgba(13, 26, 43, 0.08) 50cqi, rgba(13, 26, 43, 0.111) calc(50cqi + 6.5px), rgba(13, 26, 43, 0.135) calc(50cqi + 13px), rgba(13, 26, 43, 0.149) calc(50cqi + 19.5px));
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease-out);
 }
 
 /* The instant of the click: the window closes and opens on the new lens. */
@@ -7814,16 +7847,23 @@ html:not(.js) .schema__play {
   }
 }
 
+/* The letters at each blur, on top of one another: the one shown (site.js) comes in by a fade while
+   the other goes, as the lens comes into focus (their blurs never change: phoropter.js). */
 .phoropter__chart {
   display: grid;
+  grid-area: 1 / 1;
   justify-items: center;
   gap: 4cqi;
   color: var(--c-ink);
   font-family: var(--font-display);
   font-weight: 600;
   line-height: 1;
-  filter: blur(5px);
-  transition: filter 0.7s var(--ease-out);
+  opacity: 0;
+  transition: opacity 0.7s var(--ease-out);
+}
+
+.phoropter__chart.is-shown {
+  opacity: 1;
 }
 
 .phoropter__row {
@@ -7869,7 +7909,7 @@ html:not(.js) .schema__play {
 
 @media (hover: hover) and (pointer: fine) {
   .phoropter__lens:hover .phoropter__window {
-    box-shadow: inset 0 0 0 2px var(--c-ink), 0 0 0 6px rgba(29, 79, 163, 0.22), inset 0 10px 26px rgba(13, 26, 43, 0.16);
+    box-shadow: inset 0 0 0 2px var(--c-ink), 0 0 0 6px rgba(29, 79, 163, 0.22);
   }
 
   .phoropter__lens:hover .phoropter__num {
@@ -7877,9 +7917,29 @@ html:not(.js) .schema__play {
   }
 }
 
-/* Sharp: the windows light up in blue. */
+/* Sharp: the windows light up in blue, their shade gone. Their glow is a gradient that follows the
+   curve of a shadow blurred by 46 px (a blurred shadow coming in had its blur grow at each frame). */
 .phoropter.is-sharp .phoropter__window {
-  box-shadow: inset 0 0 0 2px var(--c-blue), 0 0 0 6px rgba(29, 79, 163, 0.25), 0 0 46px rgba(29, 79, 163, 0.35);
+  box-shadow: inset 0 0 0 2px var(--c-blue), 0 0 0 6px rgba(29, 79, 163, 0.25);
+}
+
+.phoropter.is-sharp .phoropter__window::before {
+  opacity: 0;
+}
+
+.phoropter__lens::before {
+  content: "";
+  position: absolute;
+  inset: -69px;
+  border-radius: 50%;
+  background: radial-gradient(circle calc(50cqi + 69px), rgba(29, 79, 163, 0) calc(50cqi - 1px), rgba(29, 79, 163, 0.175) 50cqi, rgba(29, 79, 163, 0.108) calc(50cqi + 11.5px), rgba(29, 79, 163, 0.056) calc(50cqi + 23px), rgba(29, 79, 163, 0.023) calc(50cqi + 34.5px), rgba(29, 79, 163, 0.008) calc(50cqi + 46px), rgba(29, 79, 163, 0.002) calc(50cqi + 57.5px), rgba(29, 79, 163, 0) calc(50cqi + 69px));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease-out);
+}
+
+.phoropter.is-sharp .phoropter__lens::before {
+  opacity: 1;
 }
 
 .phoropter.is-sharp .phoropter__num {
@@ -13021,40 +13081,96 @@ main[data-op="retine"] {
 
 /* ---------- 404 ---------- */
 /* The missing word is out of focus, like a line read without glasses: it hunts for its focus, as the
-   eye beside it hunts for the page, and loses it again under the pointer. */
+   eye beside it hunts for the page, and loses it again under the pointer (site.js plays it again).
+   Its copies blurred by 12, 7 and 4 px (build.js) take turns over it by fades: from very blurred to
+   almost sharp, blurred again, then sharp with a last halo. Their blurs never change (Chrome compiled
+   a program for each size a blur went through). */
 .page-head--404 .page-title em {
   display: inline-block;
 }
 
+[data-hunt] .w {
+  position: relative;
+}
+
+.hunt__sharp {
+  --hunt: hunt-sharp;
+  position: relative;
+  z-index: 1;
+}
+
+.hunt__soft {
+  position: absolute;
+  inset: 0;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .page-head--404 .page-title em {
-    animation: hunt-focus 3s var(--ease-in-out) 0.5s both;
+  [data-hunt]:not(.is-found) :is(.hunt__sharp, .hunt__soft) {
+    animation: var(--hunt) 3s var(--ease-in-out) 0.5s both;
   }
 
-  .page-head--404 .page-title:hover em {
-    animation: hunt-focus 1.8s var(--ease-in-out) both;
+  [data-hunt].is-hunting :is(.hunt__sharp, .hunt__soft) {
+    animation: var(--hunt) 1.8s var(--ease-in-out) both;
   }
 }
 
-@keyframes hunt-focus {
-  0% {
-    filter: blur(12px);
+@keyframes hunt-sharp {
+  0%,
+  50% {
+    opacity: 0;
   }
 
   30% {
-    filter: blur(2px);
+    opacity: 0.55;
+  }
+
+  75%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes hunt-soft-12 {
+  0% {
+    opacity: 1;
+  }
+
+  30%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hunt-soft-7 {
+  0%,
+  30%,
+  75%,
+  100% {
+    opacity: 0;
   }
 
   50% {
-    filter: blur(7px);
+    opacity: 1;
+  }
+}
+
+@keyframes hunt-soft-4 {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 0.75;
   }
 
   75% {
-    filter: blur(1px);
-  }
-
-  100% {
-    filter: blur(0);
+    opacity: 0.35;
   }
 }
 
@@ -14535,6 +14651,25 @@ main > :is(.section--sand, .section--white, .urgent):last-child::after {
 
 .w {
   display: inline-block;
+}
+
+/* Firefox readies a blur at the first frame that shows one in each visit: a frame was lost as the
+   first title of a page came into focus, in the middle of the scroll. A faint speck, blurred the same
+   way, shows in a corner from the first paint, until the page has settled (.has-blurred, site.js). */
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.has-blurred)::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    width: 2px;
+    height: 2px;
+    background: #000;
+    opacity: 0.01;
+    filter: blur(6px);
+    pointer-events: none;
+  }
 }
 
 /* The two layers of a word coming into focus (site.js): the sharp word in place, its blurred copy

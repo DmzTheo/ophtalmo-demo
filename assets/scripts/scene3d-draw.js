@@ -226,8 +226,13 @@ export async function start(link, canvas, data) {
 
   resize();
   // The shaders are compiled in the background before the first frame (on a phone, up to most of a
-  // second for the glass of the spectacle lens).
-  const compiled = typeof renderer.compileAsync === 'function' ? renderer.compileAsync(view.scene, view.camera) : Promise.resolve();
+  // second for the glass of the spectacle lens). Without parallel compiling (Firefox), they are
+  // compiled at once, here in the worker, which comes to the same (three.js would warn first).
+  const canCompileAside = typeof renderer.compileAsync === 'function' && renderer.extensions.has('KHR_parallel_shader_compile');
+  if (!canCompileAside) {
+    renderer.compile(view.scene, view.camera);
+  }
+  const compiled = canCompileAside ? renderer.compileAsync(view.scene, view.camera) : Promise.resolve();
   compiled.catch(() => {}).then(() => {
     isCompiled = true;
     link.send({ type: 'ready' });

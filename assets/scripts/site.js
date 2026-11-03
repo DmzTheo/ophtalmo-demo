@@ -395,10 +395,21 @@
   // as it crosses the screen) and, under a mouse, leans away from the pointer.
   const atmos = [...document.querySelectorAll('[data-atmo]')];
   if (atmos.length && !reduceMotion.matches && isScrollDriven) {
-    measureTasks.push(() => {
-      const heights = atmos.map((atmo) => atmo.offsetHeight);
-      atmos.forEach((atmo, i) => write(atmo, '--ak', (heights[i] / view.height).toFixed(3)));
-    });
+    // Each drawing's height is told by an observer as the browser lays its chapter out, near the
+    // screen: the chapters further away are not laid out (content-visibility), and asking their
+    // drawings' heights at the start had the browser lay out all of them at once (0.4 s on a phone).
+    const atmoHeights = new Map();
+    const writeScale = (atmo) => {
+      if (view.height > 0) {
+        write(atmo, '--ak', (atmoHeights.get(atmo) / view.height).toFixed(3));
+      }
+    };
+    const atmoSizes = new ResizeObserver((entries) => entries.forEach((entry) => {
+      atmoHeights.set(entry.target, entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+      writeScale(entry.target);
+    }));
+    atmos.forEach((atmo) => atmoSizes.observe(atmo));
+    measureTasks.push(() => atmoHeights.forEach((height, atmo) => writeScale(atmo)));
   }
   if (atmos.length && !reduceMotion.matches && !isScrollDriven && 'ViewWatcher' in window) {
     const shownAtmos = new Set();
@@ -456,6 +467,15 @@
   // sets their delay.
   const REVEAL_STAGGER = 0.04;
   const REVEAL_STAGGER_MAX = 3;
+  // The faint blurred speck that has Firefox ready its blur from the first paint (site.css) goes a
+  // second after the load, once it has been drawn.
+  const dropSpeck = () => window.setTimeout(() => root.classList.add('has-blurred'), 1000);
+  if (document.readyState === 'complete') {
+    dropSpeck();
+  } else {
+    window.addEventListener('load', dropSpeck, { once: true });
+  }
+
   const revealItems = [...document.querySelectorAll('[data-reveal], .footer-wordmark')];
   const revealAll = () => revealItems.forEach((item) => item.classList.add('is-visible'));
   // What the first screen shows when the script comes stays as it was painted: nothing on it waits
@@ -542,6 +562,11 @@
   if ('ViewWatcher' in window && !reduceMotion.matches) {
     const focusGroups = new Map();
     document.querySelectorAll(FOCUS_HOLDERS).forEach((holder) => {
+      // (Not the word that hunts for its focus, which has blurred copies of its own: further down.)
+      const isHuntWord = Boolean(holder.closest('[data-hunt]'));
+      if (isHuntWord) {
+        return;
+      }
       const group = holder.closest('[data-focus], .hero__title-main') || holder;
       focusGroups.set(group, [...(focusGroups.get(group) || []), holder]);
     });
@@ -1266,19 +1291,21 @@
     const rounds = [...game.querySelectorAll('.phoropter__rounds li')];
     const START = 1.5;
     const STEP = 0.5;
-    const BLUR_PER_STEP = 3.2;
     const HINT = 'Touchez le verre qui vous paraît le plus net.';
     let current = START;
     let offer = [];
     let turn = 0;
-    // The blur of each window and the turn of the dials are written on them as such: a custom
-    // property on the game made the browser work out its 250 elements again at each choice.
-    const charts = lenses.map((lens) => lens.querySelector('.phoropter__chart'));
+    // Each window has its letters at every blur, one for each half step away from the right lens
+    // (phoropter.js): the one of its lens is shown. The shown letters and the turn of the dials are
+    // written on them as such: a custom property on the game made the browser work out its 250
+    // elements again at each choice.
+    const charts = lenses.map((lens) => [...lens.querySelectorAll('.phoropter__chart')]);
     const dials = [...game.querySelectorAll('.phoropter__dial')];
 
     const paint = () => {
-      charts.forEach((chart, index) => {
-        chart.style.filter = `blur(${Math.min(9, (offer[index] / STEP) * BLUR_PER_STEP).toFixed(2)}px)`;
+      charts.forEach((levels, index) => {
+        const shown = Math.round(offer[index] / STEP);
+        levels.forEach((chart, level) => chart.classList.toggle('is-shown', level === shown));
       });
       const done = clamp(Math.round((START - current) / STEP), 0, rounds.length);
       rounds.forEach((round, index) => round.classList.toggle('is-done', index < done));
@@ -1338,6 +1365,24 @@
       lenses[0].focus();
     });
     newPair();
+  });
+
+  // ---------- 404: the missing word hunts for its focus again under the pointer ----------
+  // Its first hunt over, it is found (its animations go, it stays sharp); under the pointer the hunt
+  // plays again from the start (site.css).
+  document.querySelectorAll('[data-hunt]').forEach((word) => {
+    word.addEventListener('animationend', (event) => {
+      if (event.animationName === 'hunt-sharp') {
+        word.classList.add('is-found');
+        word.classList.remove('is-hunting');
+      }
+    });
+    word.closest('h1, h2, p')?.addEventListener('pointerenter', () => {
+      word.classList.add('is-found');
+      word.classList.remove('is-hunting');
+      void word.offsetWidth;
+      word.classList.add('is-hunting');
+    });
   });
 
   // ---------- Table of contents: section being read ----------
