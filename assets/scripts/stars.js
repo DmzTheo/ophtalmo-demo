@@ -157,7 +157,9 @@
     const render = (now) => {
       frame = 0;
       if (!canvas) return;
-      const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
+      // (The time of a frame is when the frame began, which can come before the moment the loop was
+      // woken: a step back in time put out the stars a finger had just lit, and the loop then stopped.)
+      const dt = Math.min(0.05, Math.max(0, now - last) / 1000) || 0.016;
       last = now;
       const t = (now - startedAt) / 1000;
       const rect = host.getBoundingClientRect();
@@ -263,7 +265,9 @@
         }
       }
       drawn = maxX > minX ? [minX, minY, maxX, maxY] : null;
-      if (lit.size || pointer.on > 0.01 || now - pointer.movedAt < 300) {
+      // (Drawn again as long as a light is there: a finger at rest gave the first frame too short a
+      // time to light anything, and the loop stopped there.)
+      if (isLit || lit.size || pointer.on > 0.01 || now - pointer.movedAt < 300) {
         frame = window.requestAnimationFrame(render);
       }
     };

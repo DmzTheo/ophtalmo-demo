@@ -309,7 +309,8 @@
 
     const render = (now) => {
       frame = 0;
-      const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
+      // (Never a step back in time: a frame began before the loop was woken, at times.)
+      const dt = Math.min(0.05, Math.max(0, now - last) / 1000) || 0.016;
       last = now;
       const t = (now - startedAt) / 1000;
       const intro = reduceMotion.matches ? 1 : clamp(t / scene.intro, 0, 1);

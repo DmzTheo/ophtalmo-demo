@@ -1191,7 +1191,8 @@
     };
     const turn = (now) => {
       frame = 0;
-      const dt = Math.min(0.05, (now - lastTime) / 1000 || 0.016);
+      // (Never a step back in time: a frame began before the loop was woken, at times.)
+      const dt = Math.min(0.05, Math.max(0, now - lastTime) / 1000) || 0.016;
       lastTime = now;
       axis += (goal - axis) * (1 - Math.exp(-dt * 7));
       paint();

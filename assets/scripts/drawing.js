@@ -467,7 +467,8 @@
 
     const render = (now) => {
       frame = 0;
-      const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
+      // (Never a step back in time: a frame began before the loop was woken, at times.)
+      const dt = Math.min(0.05, Math.max(0, now - last) / 1000) || 0.016;
       last = now;
       // The pointer in the layer, from the box of the layer read once a frame (it moves with the
       // scroll and the drift of the head).
