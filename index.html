@@ -28,7 +28,7 @@
   <link rel="preload" href="assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/img/iris-poster.webp" as="image" type="image/webp" fetchpriority="high">
   <link rel="preload" href="assets/img/iris-polar.webp" as="image" type="image/webp" fetchpriority="low">
-  <link rel="stylesheet" href="assets/stylesheets/site.min.css?v=45a02fdc">
+  <link rel="stylesheet" href="assets/stylesheets/site.min.css?v=6ebb9711">
   <script>(function crossPage(heroes) {
 const KEY = 'ophta-vt';
 const root = document.documentElement;
@@ -98,6 +98,23 @@ event.viewTransition.finished.finally(takeBack);
 });
 const canFoldHere = !('onpagereveal' in window) && 'startViewTransition' in document;
 if (canFoldHere) {
+addEventListener('pageshow', () => addEventListener('unload', () => {}), { once: true });
+const ARRIVAL = 'ophta-arrival';
+const release = () => root.classList.remove('is-held');
+try {
+const isArrival = sessionStorage.getItem(ARRIVAL) === pathOf(location.href);
+sessionStorage.removeItem(ARRIVAL);
+if (isArrival) {
+setTimeout(release, 1500);
+root.classList.add('is-held');
+new PerformanceObserver((list, observer) => {
+observer.disconnect();
+requestAnimationFrame(() => requestAnimationFrame(release));
+}).observe({ type: 'paint', buffered: true });
+}
+} catch (error) {
+release();
+}
 const hero = root.dataset.hero;
 let isLeaving = false;
 document.addEventListener('click', (event) => {
@@ -113,10 +130,15 @@ isLeaving = true;
 const to = pathOf(link.href);
 const go = () => location.assign(link.href);
 fetch(link.href).catch(() => {});
+try {
+sessionStorage.setItem(ARRIVAL, to);
+} catch (error) {
+}
 root.classList.toggle('vt-solo', isSoloTo(to));
 try {
 document.startViewTransition(() => {
 root.classList.add('is-leaving');
+document.dispatchEvent(new Event('page:leave'));
 if (to in heroes) {
 root.dataset.hero = heroes[to];
 } else {
@@ -145,11 +167,11 @@ delete root.dataset.hero;
   <script src="assets/scripts/pictures.js?v=7db7783c" defer></script>
   <script src="assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
   <script src="assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
-  <script src="assets/scripts/site.js?v=23da15a2" defer></script>
+  <script src="assets/scripts/site.js?v=55a3650b" defer></script>
   <script src="assets/scripts/motion.js?v=cd19337d" defer></script>
-  <script src="assets/scripts/drawing.js?v=dfcf8c14" defer></script>
-  <script src="assets/scripts/stars.js?v=8c24e288" defer></script>
-  <script src="assets/scripts/hero.js?v=6d666346" defer></script>
+  <script src="assets/scripts/drawing.js?v=523ca752" defer></script>
+  <script src="assets/scripts/stars.js?v=2d25a872" defer></script>
+  <script src="assets/scripts/hero.js?v=db2faebb" defer></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -328,9 +350,9 @@ delete root.dataset.hero;
           </div>
         </div>
         <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--end" id="rdv-header" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -360,7 +382,7 @@ delete root.dataset.hero;
           <div class="menu-cabinet"><p class="menu-cabinet__city">Salon-de-Provence</p><p class="menu-cabinet__address">Maison de santé Pôle Morgan<br>133 boulevard Victor Joly<br>13300 Salon-de-Provence</p><a class="menu-cabinet__phone" href="tel:+33484849586"><svg class="icon icon--phone" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>04 84 84 95 86</a></div>
         </div>
         <p class="menu__hours"><svg class="icon icon--clock" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 6v6l4 2"/></svg>Du lundi au vendredi, de 8 h 30 à 19 h</p>
-        <p class="label label--light">Rendez-vous en ligne</p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
         <div class="menu__doctors">
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
@@ -388,9 +410,9 @@ delete root.dataset.hero;
           <p class="hero__doctors hero-in" style="--hero-delay:.7s">des docteurs Buzzacchera Nadine, Soare Silvia et Gheorghe Oana</p>
           <div class="hero__actions hero-in" style="--hero-delay:.85s">
             <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--light" aria-expanded="false" aria-controls="rdv-hero" data-dropdown-toggle><span class="roll"><span class="roll__text">Prendre rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--light" aria-expanded="false" aria-controls="rdv-hero" data-dropdown-toggle><span class="roll"><span class="roll__text">Prendre rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--start" id="rdv-hero" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -426,7 +448,7 @@ delete root.dataset.hero;
           <span class="contact-band__value contact-band__value--small">Du lundi au vendredi<br>8 h 30 – 19 h</span>
         </div>
         <div class="contact-band__item contact-band__item--static" data-reveal style="--reveal-delay:.18s">
-          <span class="contact-band__label"><svg class="icon icon--calendar" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect pathLength="1" width="18" height="18" x="3" y="4" rx="2"/><path pathLength="1" d="M16 2v4"/><path pathLength="1" d="M8 2v4"/><path pathLength="1" d="M3 10h18"/><path pathLength="1" d="m9 16 2 2 4-4"/></svg>Rendez-vous en ligne</span>
+          <span class="contact-band__label"><svg class="icon icon--calendar" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect pathLength="1" width="18" height="18" x="3" y="4" rx="2"/><path pathLength="1" d="M16 2v4"/><path pathLength="1" d="M8 2v4"/><path pathLength="1" d="M3 10h18"/><path pathLength="1" d="m9 16 2 2 4-4"/></svg>Rendez-⁠vous en ligne</span>
           <span class="contact-band__doctors"><a class="contact-band__doctor" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="contact-band__doctor" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="contact-band__doctor" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a></span>
@@ -466,12 +488,11 @@ delete root.dataset.hero;
           <article class="cab-card" data-reveal style="--reveal-delay:.12s">
             <div class="cab-card__media" data-parallax data-aperture="lid" style="--open-delay: 0.18s" data-tilt="4">
               <picture data-defer><source type="image/webp" data-srcset="assets/img/pole-morgan-700.webp 700w, assets/img/pole-morgan-1100.webp 1100w, assets/img/pole-morgan-1600.webp 1600w, assets/img/pole-morgan-2200.webp 2200w" sizes="(max-width: 860px) 100vw, 50vw"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="assets/img/pole-morgan-1100.jpg" data-srcset="assets/img/pole-morgan-700.jpg 700w, assets/img/pole-morgan-1100.jpg 1100w, assets/img/pole-morgan-1600.jpg 1600w, assets/img/pole-morgan-2200.jpg 2200w" sizes="(max-width: 860px) 100vw, 50vw" width="1671" height="1238" alt="Perspective de la maison de santé Pôle Morgan, à Salon-de-Provence" decoding="async"></picture><noscript><picture><source type="image/webp" srcset="assets/img/pole-morgan-700.webp 700w, assets/img/pole-morgan-1100.webp 1100w, assets/img/pole-morgan-1600.webp 1600w, assets/img/pole-morgan-2200.webp 2200w" sizes="(max-width: 860px) 100vw, 50vw"><img src="assets/img/pole-morgan-1100.jpg" srcset="assets/img/pole-morgan-700.jpg 700w, assets/img/pole-morgan-1100.jpg 1100w, assets/img/pole-morgan-1600.jpg 1600w, assets/img/pole-morgan-2200.jpg 2200w" sizes="(max-width: 860px) 100vw, 50vw" width="1671" height="1238" alt="Perspective de la maison de santé Pôle Morgan, à Salon-de-Provence" decoding="async" loading="lazy"></picture></noscript>
-              <span class="cab-card__tag">02 · Salon-de-Provence</span>
+              <span class="cab-card__tag">02 · Salon-de-Provence <span class="badge">Nouveau</span></span>
             </div>
             <div class="cab-card__body">
               <div class="cab-card__head">
                 <h3 class="cab-card__city">Salon-de-Provence</h3>
-                <span class="badge">Nouveau</span>
               </div>
               <p class="cab-card__place">Maison de santé Pôle Morgan</p>
               <ul class="facts" role="list">
@@ -504,7 +525,7 @@ delete root.dataset.hero;
             <span class="visit__icon" aria-hidden="true"><svg class="icon icon--calendar" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect pathLength="1" width="18" height="18" x="3" y="4" rx="2"/><path pathLength="1" d="M16 2v4"/><path pathLength="1" d="M8 2v4"/><path pathLength="1" d="M3 10h18"/><path pathLength="1" d="m9 16 2 2 4-4"/></svg></span>
             <span class="visit__num" aria-hidden="true">01</span>
             <h3 class="visit__title">Accueil et secrétariat</h3>
-            <p>Pour vous accueillir, organiser vos rendez-vous et vous orienter.</p>
+            <p>Pour vous accueillir, organiser vos rendez-⁠vous et vous orienter.</p>
           </li>
           <li class="visit__step" data-reveal style="--reveal-delay:.08s">
             <span class="visit__icon" aria-hidden="true"><svg class="icon icon--scan" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M3 7V5a2 2 0 0 1 2-2h2"/><path pathLength="1" d="M17 3h2a2 2 0 0 1 2 2v2"/><path pathLength="1" d="M21 17v2a2 2 0 0 1-2 2h-2"/><path pathLength="1" d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle pathLength="1" cx="12" cy="12" r="1"/><path pathLength="1" d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/></svg></span>
@@ -756,16 +777,16 @@ delete root.dataset.hero;
     <section class="section section--sand" aria-labelledby="lunettes-title" data-stars>
       <div class="container glasses">
         <div class="glasses__text" data-reveal>
-          <p class="label">Rendez-vous rapide</p>
+          <p class="label">Rendez-⁠vous rapide</p>
           <h2 class="section-title" id="lunettes-title" data-focus><span class="sr-only">Besoin de lunettes ?</span><span aria-hidden="true"><span class="w" style="--w:0">Besoin</span> <em><span class="w" style="--w:1">de</span> <span class="w" style="--w:2">lunettes ?</span></em></span></h2>
-          <p>Pour une vérification de votre vue et une prescription ou un renouvellement de lunettes, un rendez-vous rapide est possible de 6 à 49 ans, sous conditions.</p>
+          <p>Pour une vérification de votre vue et une prescription ou un renouvellement de lunettes, un rendez-⁠vous rapide est possible de 6 à 49 ans, sous conditions.</p>
           <div class="glasses__actions">
             <a class="btn btn--ink" href="lunettes"><span class="roll"><span class="roll__text">Voir les conditions</span></span><span class="btn__icon"><svg class="icon icon--arrow-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 12h14"/><path pathLength="1" d="m12 5 7 7-7 7"/></svg></span></a>
           </div>
         </div>
         <div class="chart" data-chart aria-hidden="true" data-reveal style="--reveal-delay:.1s">
-          <div class="chart__layer chart__layer--blur"><p class="chart__line chart__line--1"><span>P 20</span><span>Voir net</span></p><p class="chart__line chart__line--2"><span>P 14</span><span>de loin comme de près</span></p><p class="chart__line chart__line--3"><span>P 8</span><span>Une vérification de votre vue et une prescription ou un renouvellement de vos lunettes.</span></p><p class="chart__line chart__line--4"><span>P 5</span><span>Rendez-vous rapide de 6 à 49 ans, sous conditions : un orthoptiste réalise la réfraction.</span></p><p class="chart__line chart__line--5"><span>P 3</span><span>L'ophtalmologiste examine ensuite le dossier et, sans pathologies détectées, fera envoyer l'ordonnance dans les 8 jours suivants.</span></p><p class="chart__line chart__line--6"><span>P 2</span><span>La lumière traverse la cornée et le cristallin, qui la concentrent sur la rétine : la mise au point.</span></p></div>
-          <div class="chart__lens"><div class="chart__layer chart__layer--sharp"><p class="chart__line chart__line--1"><span>P 20</span><span>Voir net</span></p><p class="chart__line chart__line--2"><span>P 14</span><span>de loin comme de près</span></p><p class="chart__line chart__line--3"><span>P 8</span><span>Une vérification de votre vue et une prescription ou un renouvellement de vos lunettes.</span></p><p class="chart__line chart__line--4"><span>P 5</span><span>Rendez-vous rapide de 6 à 49 ans, sous conditions : un orthoptiste réalise la réfraction.</span></p><p class="chart__line chart__line--5"><span>P 3</span><span>L'ophtalmologiste examine ensuite le dossier et, sans pathologies détectées, fera envoyer l'ordonnance dans les 8 jours suivants.</span></p><p class="chart__line chart__line--6"><span>P 2</span><span>La lumière traverse la cornée et le cristallin, qui la concentrent sur la rétine : la mise au point.</span></p></div></div>
+          <div class="chart__layer chart__layer--blur"><p class="chart__line chart__line--1"><span>P 20</span><span>Voir net</span></p><p class="chart__line chart__line--2"><span>P 14</span><span>de loin comme de près</span></p><p class="chart__line chart__line--3"><span>P 8</span><span>Une vérification de votre vue et une prescription ou un renouvellement de vos lunettes.</span></p><p class="chart__line chart__line--4"><span>P 5</span><span>Rendez-⁠vous rapide de 6 à 49 ans, sous conditions : un orthoptiste réalise la réfraction.</span></p><p class="chart__line chart__line--5"><span>P 3</span><span>L'ophtalmologiste examine ensuite le dossier et, sans pathologies détectées, fera envoyer l'ordonnance dans les 8 jours suivants.</span></p><p class="chart__line chart__line--6"><span>P 2</span><span>La lumière traverse la cornée et le cristallin, qui la concentrent sur la rétine : la mise au point.</span></p></div>
+          <div class="chart__lens"><div class="chart__layer chart__layer--sharp"><p class="chart__line chart__line--1"><span>P 20</span><span>Voir net</span></p><p class="chart__line chart__line--2"><span>P 14</span><span>de loin comme de près</span></p><p class="chart__line chart__line--3"><span>P 8</span><span>Une vérification de votre vue et une prescription ou un renouvellement de vos lunettes.</span></p><p class="chart__line chart__line--4"><span>P 5</span><span>Rendez-⁠vous rapide de 6 à 49 ans, sous conditions : un orthoptiste réalise la réfraction.</span></p><p class="chart__line chart__line--5"><span>P 3</span><span>L'ophtalmologiste examine ensuite le dossier et, sans pathologies détectées, fera envoyer l'ordonnance dans les 8 jours suivants.</span></p><p class="chart__line chart__line--6"><span>P 2</span><span>La lumière traverse la cornée et le cristallin, qui la concentrent sur la rétine : la mise au point.</span></p></div></div>
           <p class="chart__hint"><svg class="icon icon--glasses" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="6" cy="15" r="4"/><circle pathLength="1" cx="18" cy="15" r="4"/><path pathLength="1" d="M14 15a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path pathLength="1" d="M2.5 13 5 7c.7-1.3 1.4-2 3-2"/><path pathLength="1" d="M21.5 13 19 7c-.7-1.3-1.5-2-3-2"/></svg>Mise au point</p>
         </div>
       </div>
@@ -788,7 +809,7 @@ delete root.dataset.hero;
               <h3 class="doctor-card__name"><a href="equipe#buzzacchera">Dr Nadine Buzzacchera</a></h3>
               <p class="doctor-card__role">Ophtalmologiste</p>
               <p class="doctor-card__bio">Chirurgie de la cataracte, du glaucome, des paupières et chirurgie réfractive.</p>
-              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-vous</span></span><span class="sr-only"> avec le Dr Nadine Buzzacchera (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
+              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-⁠vous</span></span><span class="sr-only"> avec le Dr Nadine Buzzacchera (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
             </div>
           </article>
           <article class="doctor-card" data-reveal style="--reveal-delay:.12s">
@@ -797,7 +818,7 @@ delete root.dataset.hero;
               <h3 class="doctor-card__name"><a href="equipe#soare">Dr Silvia Soare</a></h3>
               <p class="doctor-card__role">Ophtalmologiste</p>
               <p class="doctor-card__bio">Diplômes universitaires de pathologie chirurgicale rétino-vitréenne, d'imagerie et pathologie rétinienne, et des infections et inflammations oculaires.</p>
-              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-vous</span></span><span class="sr-only"> avec le Dr Silvia Soare (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
+              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-⁠vous</span></span><span class="sr-only"> avec le Dr Silvia Soare (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
             </div>
           </article>
           <article class="doctor-card" data-reveal style="--reveal-delay:.24s">
@@ -813,7 +834,7 @@ delete root.dataset.hero;
               <h3 class="doctor-card__name"><a href="equipe#gheorghe">Dr Oana Gheorghe</a></h3>
               <p class="doctor-card__role">Ophtalmologiste</p>
               <p class="doctor-card__bio">Diplômes interuniversitaires d'OCT en ophtalmologie et d'imagerie rétinienne et traitements maculaires.</p>
-              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-vous</span></span><span class="sr-only"> avec le Dr Oana Gheorghe (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
+              <a class="btn btn--primary btn--sm" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Prendre rendez-⁠vous</span></span><span class="sr-only"> avec le Dr Oana Gheorghe (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
             </div>
           </article>
         </div>
@@ -825,8 +846,8 @@ delete root.dataset.hero;
     <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
-        <p class="label label--light">Rendez-vous en ligne</p>
-        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-vous</span></span></span></span></p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
+        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-⁠vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-⁠vous</span></span></span></span></p>
         <div class="footer-cta__actions">
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>

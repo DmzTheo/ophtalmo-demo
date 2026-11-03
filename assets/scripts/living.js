@@ -11,6 +11,9 @@
   }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  // (Drawn by the processor in Firefox, as the other 2D canvases of the site: see stars.js.)
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
+  const canvasOptions = isGecko ? { willReadFrequently: true } : undefined;
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const easeOut = (t) => 1 - (1 - clamp(t, 0, 1)) ** 3;
   const TAU = Math.PI * 2;
@@ -285,7 +288,7 @@
 
   hosts.forEach((canvas) => {
     const make = SCENES[canvas.dataset.living];
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', canvasOptions);
     if (!make || !ctx) {
       return;
     }

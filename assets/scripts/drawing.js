@@ -14,6 +14,9 @@
   if (!layers.length || !finePointer.matches || reduceMotion.matches || !window.DOMParser) {
     return;
   }
+  // (Drawn by the processor in Firefox, as the other 2D canvases of the site: see stars.js.)
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
+  const canvasOptions = isGecko ? { willReadFrequently: true } : undefined;
   const VIEW_W = 1600;
   const STEP = 5;
   const REACH = 85;
@@ -508,7 +511,7 @@
       canvas = document.createElement('canvas');
       canvas.className = 'drawing__live';
       canvas.setAttribute('aria-hidden', 'true');
-      ctx = canvas.getContext('2d');
+      ctx = canvas.getContext('2d', canvasOptions);
       layer.append(canvas);
       setup();
       const box = layer.getBoundingClientRect();

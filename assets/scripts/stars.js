@@ -4,14 +4,20 @@
 // their colour is --stars-ink (warm white on dark grounds, the colour of the page on the paper).
 // Nothing is drawn at rest: the canvas is made when the pointer first comes over the element,
 // covers only the part of it on screen, and is freed when the element leaves the screen.
-// Mouse only; nothing with reduced motion.
+// The mouse, and on a touch screen each finger put on the element: its light follows the finger as
+// it scrolls the page, and fades once the finger is lifted. Nothing with reduced motion.
 (() => {
   const hosts = [...document.querySelectorAll('[data-stars]')];
-  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (!hosts.length || !finePointer.matches || reduceMotion.matches) {
+  if (!hosts.length || reduceMotion.matches) {
     return;
   }
+  // In Firefox, the first 2D canvas of a visit drawn by the graphics chip had it ready that way of
+  // drawing, and the whole page stopped meanwhile (0.2 s; 1.5 s on the pathologies page, its living
+  // ground drawing itself on arrival): there the processor draws them (willReadFrequently). Elsewhere
+  // the graphics chip draws them better (in Chrome the processor slowed the pathologies page as it came).
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
+  const canvasOptions = isGecko ? { willReadFrequently: true } : undefined;
   const TAU = Math.PI * 2;
   const CELL = 34;
   const REACH = 150;
@@ -28,7 +34,7 @@
   const soft = document.createElement('canvas');
   soft.width = 64;
   soft.height = 64;
-  const softCtx = soft.getContext('2d');
+  const softCtx = soft.getContext('2d', canvasOptions);
   const softGradient = softCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
   softGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
   softGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
@@ -59,6 +65,9 @@
     const startedAt = performance.now();
     const lit = new Set();
     const pointer = { x: 0, y: 0, inside: false, on: 0, movedAt: -9999 };
+    // The fingers on the element, by touch identifier: where each is on the screen.
+    const fingers = new Map();
+    let isShown = false;
 
     // Stars by square of REACH, under a number key (a square of the grid, columns then rows).
     const bucketKey = (i, j) => i * 65536 + j;
@@ -97,7 +106,7 @@
       tinted = document.createElement('canvas');
       tinted.width = 64;
       tinted.height = 64;
-      const t = tinted.getContext('2d');
+      const t = tinted.getContext('2d', canvasOptions);
       t.drawImage(soft, 0, 0);
       t.globalCompositeOperation = 'source-in';
       t.fillStyle = ink;
@@ -118,7 +127,7 @@
         canvas.className = 'stars';
         canvas.setAttribute('aria-hidden', 'true');
         host.prepend(canvas);
-        ctx = canvas.getContext('2d');
+        ctx = canvas.getContext('2d', canvasOptions);
         build();
       }
       if (!viewHeight) {
@@ -151,21 +160,26 @@
       const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
       last = now;
       const t = (now - startedAt) / 1000;
-      pointer.on += ((pointer.inside ? 1 : 0) - pointer.on) * (1 - Math.exp(-dt * 6));
       const rect = host.getBoundingClientRect();
+      // The lights, in the element's coordinates: the mouse over it, and each finger on it.
+      const lights = [];
+      if (pointer.inside) {
+        lights.push([pointer.x - rect.left, pointer.y - rect.top]);
+      }
+      fingers.forEach((finger) => lights.push([finger.x - rect.left, finger.y - rect.top]));
+      const isLit = lights.length > 0;
+      pointer.on += ((isLit ? 1 : 0) - pointer.on) * (1 - Math.exp(-dt * 6));
       const top = clamp(-rect.top, 0, Math.max(0, height - canvas.height));
       const shown = top.toFixed(1);
       if (shown !== shownTop) {
         shownTop = shown;
         canvas.style.transform = `translateY(${shown}px)`;
       }
-      const px = pointer.x - rect.left;
-      const py = pointer.y - rect.top;
       // The stars in the light around the pointer brighten...
-      if (pointer.inside) {
+      const rise = Math.min(1, dt * 10);
+      for (const [px, py] of lights) {
         const bx = Math.floor(px / REACH);
         const by = Math.floor(py / REACH);
-        const rise = Math.min(1, dt * 10);
         for (let i = bx - 1; i <= bx + 1; i += 1) {
           for (let j = by - 1; j <= by + 1; j += 1) {
             const bucket = buckets.get(bucketKey(i, j));
@@ -194,10 +208,21 @@
       ctx.fillStyle = ink;
       const fade = Math.exp(-dt * 2.2);
       for (const star of lit) {
-        const dx = star.x - px;
-        const dy = star.y - py;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        const isNear = pointer.inside && d < REACH * 1.4;
+        // (The nearest light pushes it.)
+        let dx = 0;
+        let dy = 0;
+        let d = Infinity;
+        for (const [px, py] of lights) {
+          const ex = star.x - px;
+          const ey = star.y - py;
+          const e = Math.sqrt(ex * ex + ey * ey);
+          if (e < d) {
+            d = e;
+            dx = ex;
+            dy = ey;
+          }
+        }
+        const isNear = d < REACH * 1.4;
         if (!isNear) {
           star.glow *= fade;
         }
@@ -208,7 +233,7 @@
         }
         const driftX = Math.sin(t * 0.6 + star.a * TAU) * 5 * star.depth;
         const driftY = Math.cos(t * 0.5 + star.b * TAU) * 5 * star.depth;
-        const push = pointer.inside ? Math.exp(-(d * d) / (70 * 70)) * 26 * star.depth : 0;
+        const push = isLit ? Math.exp(-(d * d) / (70 * 70)) * 26 * star.depth : 0;
         const away = d || 1;
         const x = star.x + driftX + (dx / away) * push;
         const y = star.y + driftY + (dy / away) * push - top;
@@ -250,6 +275,9 @@
     };
 
     host.addEventListener('pointermove', (event) => {
+      // (A finger is followed by its touch events, which go on while it scrolls the page.)
+      const isTouch = event.pointerType === 'touch';
+      if (isTouch) return;
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.inside = true;
@@ -257,19 +285,50 @@
       ensureCanvas();
       wake();
     });
-    host.addEventListener('pointerleave', () => {
+    host.addEventListener('pointerleave', (event) => {
+      const isTouch = event.pointerType === 'touch';
+      if (isTouch) return;
       pointer.inside = false;
       wake();
     });
+    // A finger put on the element, or moving on it (scrolling the page as well), lights the stars
+    // around it; lifted, it lets them fade. Several fingers, several lights.
+    const touch = (event) => {
+      if (!isShown) return;
+      for (const finger of event.changedTouches) {
+        const known = fingers.get(finger.identifier);
+        if (known) {
+          known.x = finger.clientX;
+          known.y = finger.clientY;
+        } else {
+          fingers.set(finger.identifier, { x: finger.clientX, y: finger.clientY });
+        }
+      }
+      ensureCanvas();
+      wake();
+    };
+    const lift = (event) => {
+      for (const finger of event.changedTouches) {
+        fingers.delete(finger.identifier);
+      }
+      wake();
+    };
+    host.addEventListener('touchstart', touch, { passive: true });
+    host.addEventListener('touchmove', touch, { passive: true });
+    host.addEventListener('touchend', lift, { passive: true });
+    host.addEventListener('touchcancel', lift, { passive: true });
     window.addEventListener('scroll', () => {
-      if (pointer.inside && canvas) {
+      const isLit = pointer.inside || fingers.size > 0;
+      if (isLit && canvas) {
         pointer.movedAt = performance.now();
         wake();
       }
     }, { passive: true });
     new ViewWatcher(([entry]) => {
+      isShown = entry.isIntersecting;
       if (!entry.isIntersecting) {
         pointer.inside = false;
+        fingers.clear();
         release();
       }
     }).observe(host);

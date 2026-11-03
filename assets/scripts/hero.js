@@ -23,6 +23,9 @@
   const playButton = document.querySelector('[data-iris-play]');
   const drawingLayer = stage.querySelector('.hero__drawing');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // (Drawn by the processor in Firefox, as the other 2D canvases of the site: see stars.js.)
+  const isGecko = window.CSS?.supports?.('-moz-appearance: none') === true || /\bFirefox\//.test(navigator.userAgent);
+  const canvasOptions = isGecko ? { willReadFrequently: true } : undefined;
 
   const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' });
   if (!gl) {
@@ -249,11 +252,17 @@
     gl.linkProgram(linked);
     return linked;
   };
-  const program = link(VERTEX, FRAGMENT, ['aPos']);
-  const dustProgram = link(DUST_VERTEX, DUST_FRAGMENT, ['aUnused', 'aCell', 'aRand', 'aLayer']);
-  // (Sent at once: Firefox otherwise keeps them until they are asked for, and compiles them then.)
-  gl.flush();
-  const linkedAt = performance.now();
+  // (Given to the graphics chip once the hero has arrived: see Start.)
+  let program = null;
+  let dustProgram = null;
+  let linkedAt = 0;
+  const linkPrograms = () => {
+    program = link(VERTEX, FRAGMENT, ['aPos']);
+    dustProgram = link(DUST_VERTEX, DUST_FRAGMENT, ['aUnused', 'aCell', 'aRand', 'aLayer']);
+    // (Sent at once: Firefox otherwise keeps them until they are asked for, and compiles them then.)
+    gl.flush();
+    linkedAt = performance.now();
+  };
   // Where the browser can tell whether they are compiled yet (Chrome, Edge), they are asked for only
   // when they are (each question waits for the graphics process: asked once the iris is there);
   // elsewhere (Firefox), a quarter of a second after they were given, time enough to compile them.
@@ -458,7 +467,7 @@
     const raster = document.createElement('canvas');
     raster.width = 2048;
     raster.height = 1280;
-    const context = raster.getContext('2d');
+    const context = raster.getContext('2d', canvasOptions);
     context.drawImage(drawingImage, 0, 0, raster.width, raster.height);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, drawTexture);
@@ -479,7 +488,7 @@
   };
 
   // ---------- Pupillometer ----------
-  const traceContext = trace ? trace.getContext('2d') : null;
+  const traceContext = trace ? trace.getContext('2d', canvasOptions) : null;
   const drawTrace = (now) => {
     if (!traceContext) {
       return;
@@ -724,8 +733,8 @@
   };
 
   // ---------- Start ----------
-  // The iris is decoded aside (decode, createImageBitmap) while the programs compile. Its first
-  // frames are then drawn while the canvas is still clear: the graphics chip readies its textures and
+  // The iris is decoded aside (decode, createImageBitmap) while the hero arrives, then its programs
+  // compile. Its first frames are then drawn while the canvas is still clear: the graphics chip readies its textures and
   // programs meanwhile, a hitch the eye showed as it came in. The canvas fades in over the poster once
   // frames come at the pace of the screen (the frame loop), the drawing as soon as both are ready.
   const irisLoaded = new Promise((resolve, reject) => {
@@ -735,7 +744,23 @@
   const irisSource = irisLoaded
     .then(() => (image.decode ? image.decode().catch(() => {}) : null))
     .then(() => (window.createImageBitmap ? window.createImageBitmap(image).catch(() => image) : image));
-  const glReady = irisSource.then((source) => whenCompiled().then(() => source)).then((source) => {
+  // The iris comes alive once the hero has arrived (its animations over, 3.5 s at most): its programs
+  // compiled and its textures readied by the graphics chip during the arrival held the screen up a
+  // frame or two at the first visit (Firefox). Meanwhile the poster shows it.
+  // (Its animations are read at the first frame: read as the script runs, they would have the page
+  // worked out in advance.)
+  const hasEnd = (animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime);
+  const hasArrived = new Promise((resolve) => {
+    window.setTimeout(resolve, 3500);
+    window.requestAnimationFrame(() => {
+      const arrivals = (hero.getAnimations?.({ subtree: true }) || []).filter(hasEnd);
+      Promise.all(arrivals.map((animation) => animation.finished.catch(() => {}))).then(resolve);
+    });
+  });
+  const glReady = Promise.all([irisSource, hasArrived]).then(([source]) => {
+    linkPrograms();
+    return whenCompiled().then(() => source);
+  }).then((source) => {
     if (!prepare()) {
       throw new Error('The iris programs did not compile.');
     }

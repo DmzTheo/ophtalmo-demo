@@ -26,7 +26,7 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=45a02fdc">
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=6ebb9711">
   <script>(function crossPage(heroes) {
 const KEY = 'ophta-vt';
 const root = document.documentElement;
@@ -96,6 +96,23 @@ event.viewTransition.finished.finally(takeBack);
 });
 const canFoldHere = !('onpagereveal' in window) && 'startViewTransition' in document;
 if (canFoldHere) {
+addEventListener('pageshow', () => addEventListener('unload', () => {}), { once: true });
+const ARRIVAL = 'ophta-arrival';
+const release = () => root.classList.remove('is-held');
+try {
+const isArrival = sessionStorage.getItem(ARRIVAL) === pathOf(location.href);
+sessionStorage.removeItem(ARRIVAL);
+if (isArrival) {
+setTimeout(release, 1500);
+root.classList.add('is-held');
+new PerformanceObserver((list, observer) => {
+observer.disconnect();
+requestAnimationFrame(() => requestAnimationFrame(release));
+}).observe({ type: 'paint', buffered: true });
+}
+} catch (error) {
+release();
+}
 const hero = root.dataset.hero;
 let isLeaving = false;
 document.addEventListener('click', (event) => {
@@ -111,10 +128,15 @@ isLeaving = true;
 const to = pathOf(link.href);
 const go = () => location.assign(link.href);
 fetch(link.href).catch(() => {});
+try {
+sessionStorage.setItem(ARRIVAL, to);
+} catch (error) {
+}
 root.classList.toggle('vt-solo', isSoloTo(to));
 try {
 document.startViewTransition(() => {
 root.classList.add('is-leaving');
+document.dispatchEvent(new Event('page:leave'));
 if (to in heroes) {
 root.dataset.hero = heroes[to];
 } else {
@@ -142,10 +164,10 @@ delete root.dataset.hero;
   <script src="../assets/scripts/view.js?v=ace5a464" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
-  <script src="../assets/scripts/site.js?v=23da15a2" defer></script>
+  <script src="../assets/scripts/site.js?v=55a3650b" defer></script>
   <script src="../assets/scripts/motion.js?v=cd19337d" defer></script>
-  <script src="../assets/scripts/drawing.js?v=dfcf8c14" defer></script>
-  <script src="../assets/scripts/stars.js?v=8c24e288" defer></script>
+  <script src="../assets/scripts/drawing.js?v=523ca752" defer></script>
+  <script src="../assets/scripts/stars.js?v=2d25a872" defer></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -233,9 +255,9 @@ delete root.dataset.hero;
           </div>
         </div>
         <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--end" id="rdv-header" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -265,7 +287,7 @@ delete root.dataset.hero;
           <div class="menu-cabinet"><p class="menu-cabinet__city">Salon-de-Provence</p><p class="menu-cabinet__address">Maison de santé Pôle Morgan<br>133 boulevard Victor Joly<br>13300 Salon-de-Provence</p><a class="menu-cabinet__phone" href="tel:+33484849586"><svg class="icon icon--phone" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>04 84 84 95 86</a></div>
         </div>
         <p class="menu__hours"><svg class="icon icon--clock" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 6v6l4 2"/></svg>Du lundi au vendredi, de 8 h 30 à 19 h</p>
-        <p class="label label--light">Rendez-vous en ligne</p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
         <div class="menu__doctors">
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
@@ -338,7 +360,7 @@ delete root.dataset.hero;
             <a href="#bilan">
               <span class="itinerary__num" aria-hidden="true">01</span>
               <span class="itinerary__title">Bilan clinique pré-opératoire</span>
-              <span class="itinerary__topics">La cataracte · Contenu de la consultation · Entretien · Programmation de la chirurgie</span>
+              <span class="itinerary__topics">La cataracte · Contenu de la consultation · Entretien · Programmation de la chirurgie</span>
               <svg class="icon icon--arrow-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M12 5v14"/><path pathLength="1" d="m19 12-7 7-7-7"/></svg>
             </a>
           </li>
@@ -346,7 +368,7 @@ delete root.dataset.hero;
             <a href="#preparer">
               <span class="itinerary__num" aria-hidden="true">02</span>
               <span class="itinerary__title">Préparer l'intervention</span>
-              <span class="itinerary__topics">Remplissez le dossier administratif · Prenez rendez-vous avec l'anesthésiste · Contactez votre assurance complémentaire / mutuelle · Allez chercher vos traitements</span>
+              <span class="itinerary__topics">Remplissez le dossier administratif · Prenez rendez-⁠vous avec l'anesthésiste · Contactez votre assurance complémentaire / mutuelle · Allez chercher vos traitements</span>
               <svg class="icon icon--arrow-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M12 5v14"/><path pathLength="1" d="m19 12-7 7-7-7"/></svg>
             </a>
           </li>
@@ -354,7 +376,7 @@ delete root.dataset.hero;
             <a href="#premium">
               <span class="itinerary__num" aria-hidden="true">03</span>
               <span class="itinerary__title">Chirurgie premium</span>
-              <span class="itinerary__topics">Pourquoi une chirurgie premium · Quelle est la différence avec la chirurgie standard · Y a-t-il un surcoût</span>
+              <span class="itinerary__topics">Pourquoi une chirurgie premium · Quelle est la différence avec la chirurgie standard · Y a-⁠t-⁠il un surcoût</span>
               <svg class="icon icon--arrow-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M12 5v14"/><path pathLength="1" d="m19 12-7 7-7-7"/></svg>
             </a>
           </li>
@@ -362,7 +384,7 @@ delete root.dataset.hero;
             <a href="#apres">
               <span class="itinerary__num" aria-hidden="true">04</span>
               <span class="itinerary__title">Vous venez d'être opéré(e) : que faire ?</span>
-              <span class="itinerary__topics">Quand puis-je rentrer à mon domicile · Quand vais-je revoir ? Vais-je avoir mal · Que faire de mon pansement · Quand dois-je commencer à mettre les gouttes · Qui doit m'instiller les gouttes · Quand aura lieu le contrôle post-opératoire</span>
+              <span class="itinerary__topics">Quand puis-⁠je rentrer à mon domicile · Quand vais-⁠je revoir ? Vais-⁠je avoir mal · Que faire de mon pansement · Quand dois-⁠je commencer à mettre les gouttes · Qui doit m'instiller les gouttes · Quand aura lieu le contrôle post-opératoire</span>
               <svg class="icon icon--arrow-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M12 5v14"/><path pathLength="1" d="m19 12-7 7-7-7"/></svg>
             </a>
           </li>
@@ -452,7 +474,7 @@ delete root.dataset.hero;
                   </div>
                 </div>
                 <div class="qa">
-                  <h3>Prenez rendez-vous avec l'anesthésiste</h3>
+                  <h3>Prenez rendez-⁠vous avec l'anesthésiste</h3>
                   <div class="qa__answer prose">
                     <p>Vous devez rencontrer l'anesthésiste avant l'intervention, même si celle-ci se fait sous anesthésie locale.</p>
                   </div>
@@ -511,7 +533,7 @@ delete root.dataset.hero;
                   </div>
                 </div>
                 <div class="qa">
-                  <h3>Y a-t-il un surcoût ?</h3>
+                  <h3>Y a-⁠t-⁠il un surcoût ?</h3>
                   <div class="qa__answer prose">
                     <p>Oui, en général : l'Assurance maladie prend en charge l'opération avec un implant standard, mais pas le surcoût d'un implant dit « premium ».</p>
                     <p>C'est pourquoi votre chirurgien vous donnera un devis détaillé concernant l'implant sélectionné. Vous paierez directement à la clinique la différence de prix entre votre implant « premium » et l'implant standard (de 64 à 500 € par œil) : son montant exact figure sur le devis. La clinique se charge en effet de la fourniture de cet implant sur recommandation de votre chirurgien.</p>
@@ -528,7 +550,7 @@ delete root.dataset.hero;
               <h2 class="journey__title" data-focus><span class="sr-only">Vous venez d'être opéré(e) : que faire ?</span><span aria-hidden="true"><span class="w" style="--w:0">Vous</span> <span class="w" style="--w:1">venez</span> <span class="w" style="--w:2">d'être</span> <span class="w" style="--w:3">opéré(e) :</span> <span class="w" style="--w:4">que</span> <span class="w" style="--w:5">faire ?</span></span></h2>
               <div class="journey__card" data-reveal>
                 <div class="qa">
-                  <h3>Quand puis-je rentrer à mon domicile ?</h3>
+                  <h3>Quand puis-⁠je rentrer à mon domicile ?</h3>
                   <div class="qa__answer prose">
                     <p>Une fois la chirurgie terminée, une infirmière vous donnera toutes les consignes post-opératoires (que faire du pansement, comment et quand mettre les gouttes, dates post-opératoires, etc.) et vous proposera une collation.</p>
                     <p>Après votre sortie administrative, vous pouvez rentrer chez vous, accompagné(e) : ne conduisez pas vous-même.</p>
@@ -536,7 +558,7 @@ delete root.dataset.hero;
                   </div>
                 </div>
                 <div class="qa">
-                  <h3>Quand vais-je revoir ? Vais-je avoir mal ?</h3>
+                  <h3>Quand vais-⁠je revoir ? Vais-⁠je avoir mal ?</h3>
                   <div class="qa__answer prose">
                     <p>Le plus souvent, l’œil opéré est peu ou pas douloureux ; une gêne légère (sensation de grain de sable, picotements) est fréquente les premiers jours.</p>
                     <p>La vision s’améliore très rapidement, souvent dès le lendemain, et une correction adaptée par lunettes peut être prescrite au bout de quelques semaines.</p>
@@ -550,7 +572,7 @@ delete root.dataset.hero;
                   </div>
                 </div>
                 <div class="qa">
-                  <h3>Quand dois-je commencer à mettre les gouttes ?</h3>
+                  <h3>Quand dois-⁠je commencer à mettre les gouttes ?</h3>
                   <div class="qa__answer prose">
                     <p>Si votre œil est couvert d'un pansement, instillez les premières gouttes aussitôt celui-ci retiré ; sinon, dès le soir de l'intervention.</p>
                     <p>Vous pouvez instiller les différents traitements à la suite, en attendant une dizaine de minutes entre deux collyres différents.</p>
@@ -570,7 +592,7 @@ delete root.dataset.hero;
                   <h3>Quand aura lieu le contrôle post-opératoire ?</h3>
                   <div class="qa__answer prose">
                     <p>Avant votre intervention, le médecin vous remettra un dossier complet post-opératoire personnalisé.</p>
-                    <p>Dans celui-ci figurent la date et l'heure de votre rendez-vous prévu au centre d'ophtalmologie à Miramas. En cas d'impossibilité de vous rendre à ce rendez-vous, merci de contacter le secrétariat via le numéro de téléphone indiqué.</p>
+                    <p>Dans celui-ci figurent la date et l'heure de votre rendez-⁠vous prévu au centre d'ophtalmologie à Miramas. En cas d'impossibilité de vous rendre à ce rendez-⁠vous, merci de contacter le secrétariat via le numéro de téléphone indiqué.</p>
                   </div>
                 </div>
               </div>
@@ -586,8 +608,8 @@ delete root.dataset.hero;
     <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
-        <p class="label label--light">Rendez-vous en ligne</p>
-        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-vous</span></span></span></span></p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
+        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-⁠vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-⁠vous</span></span></span></span></p>
         <div class="footer-cta__actions">
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>

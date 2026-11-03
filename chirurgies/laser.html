@@ -26,7 +26,7 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=45a02fdc">
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=6ebb9711">
   <script>(function crossPage(heroes) {
 const KEY = 'ophta-vt';
 const root = document.documentElement;
@@ -96,6 +96,23 @@ event.viewTransition.finished.finally(takeBack);
 });
 const canFoldHere = !('onpagereveal' in window) && 'startViewTransition' in document;
 if (canFoldHere) {
+addEventListener('pageshow', () => addEventListener('unload', () => {}), { once: true });
+const ARRIVAL = 'ophta-arrival';
+const release = () => root.classList.remove('is-held');
+try {
+const isArrival = sessionStorage.getItem(ARRIVAL) === pathOf(location.href);
+sessionStorage.removeItem(ARRIVAL);
+if (isArrival) {
+setTimeout(release, 1500);
+root.classList.add('is-held');
+new PerformanceObserver((list, observer) => {
+observer.disconnect();
+requestAnimationFrame(() => requestAnimationFrame(release));
+}).observe({ type: 'paint', buffered: true });
+}
+} catch (error) {
+release();
+}
 const hero = root.dataset.hero;
 let isLeaving = false;
 document.addEventListener('click', (event) => {
@@ -111,10 +128,15 @@ isLeaving = true;
 const to = pathOf(link.href);
 const go = () => location.assign(link.href);
 fetch(link.href).catch(() => {});
+try {
+sessionStorage.setItem(ARRIVAL, to);
+} catch (error) {
+}
 root.classList.toggle('vt-solo', isSoloTo(to));
 try {
 document.startViewTransition(() => {
 root.classList.add('is-leaving');
+document.dispatchEvent(new Event('page:leave'));
 if (to in heroes) {
 root.dataset.hero = heroes[to];
 } else {
@@ -142,10 +164,10 @@ delete root.dataset.hero;
   <script src="../assets/scripts/view.js?v=ace5a464" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
-  <script src="../assets/scripts/site.js?v=23da15a2" defer></script>
+  <script src="../assets/scripts/site.js?v=55a3650b" defer></script>
   <script src="../assets/scripts/motion.js?v=cd19337d" defer></script>
-  <script src="../assets/scripts/drawing.js?v=dfcf8c14" defer></script>
-  <script src="../assets/scripts/stars.js?v=8c24e288" defer></script>
+  <script src="../assets/scripts/drawing.js?v=523ca752" defer></script>
+  <script src="../assets/scripts/stars.js?v=2d25a872" defer></script>
   <script type="module" src="../assets/scripts/scene3d.js?v=9deb692d"></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
@@ -250,9 +272,9 @@ delete root.dataset.hero;
           </div>
         </div>
         <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--end" id="rdv-header" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -282,7 +304,7 @@ delete root.dataset.hero;
           <div class="menu-cabinet"><p class="menu-cabinet__city">Salon-de-Provence</p><p class="menu-cabinet__address">Maison de santé Pôle Morgan<br>133 boulevard Victor Joly<br>13300 Salon-de-Provence</p><a class="menu-cabinet__phone" href="tel:+33484849586"><svg class="icon icon--phone" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>04 84 84 95 86</a></div>
         </div>
         <p class="menu__hours"><svg class="icon icon--clock" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 6v6l4 2"/></svg>Du lundi au vendredi, de 8 h 30 à 19 h</p>
-        <p class="label label--light">Rendez-vous en ligne</p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
         <div class="menu__doctors">
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
@@ -365,7 +387,7 @@ delete root.dataset.hero;
     <g class="from-3 until-3"><circle cx="672" cy="452" r="27.3" class="ablation-zone"/><g class="scan-orbit" style="transform-origin:672px 452px"><circle cx="690.5" cy="452" r="3" class="scan-spot"/></g><g class="tracker"><path d="M568 452H631.7M712.3 452H776M672 348V411.7M672 492.3V556" class="tracker-line"/><circle cx="672" cy="452" r="40.3" class="tracker-line"/></g></g>
     <g class="from-5"><circle cx="672" cy="452" r="33.6" class="epi-defect"/></g><circle cx="672" cy="452" r="104" class="inset__ring"/></svg></div>
           <div class="schema__spot"><i class="schema__shade" style="--u:var(--s1u);--v:var(--s1v);--r:var(--s1r)"></i><i class="schema__shade" style="--u:var(--s2u);--v:var(--s2v);--r:var(--s2r)"></i><i class="schema__shade" style="--u:var(--s3u);--v:var(--s3v);--r:var(--s3r)"></i><i class="schema__shade" style="--u:var(--s4u);--v:var(--s4v);--r:var(--s4r)"></i><i class="schema__shade" style="--u:var(--s5u);--v:var(--s5v);--r:var(--s5r)"></i></div><div class="schema__target"><div class="schema__target-size" style="--r:var(--s1r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s2r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s3r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s4r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s5r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div></div>
-          <div class="schema__labels"><span class="schema__label schema__label--start" style="--x:2.5%;--y:39.7%">Épithélium</span><span class="schema__label schema__label--start" style="--x:2.5%;--y:54.1%">Stroma</span><span class="schema__label schema__label--start" style="--x:2.5%;--y:67.8%">Endothélium</span><span class="schema__label schema__label--center" style="--x:36.3%;--y:93.3%">Épaisseurs exagérées</span><span class="schema__label schema__label--center schema__label--accent from-2 until-2" style="--x:21.3%;--y:25%">Volet et charnière</span><span class="schema__label schema__label--center schema__label--accent from-3 until-3" style="--x:36.3%;--y:26.7%">Laser excimer</span><span class="schema__label schema__label--center from-5" style="--x:36.3%;--y:28.7%">Lentille-pansement</span><span class="schema__label schema__label--center" style="--x:81.8%;--y:45%">Où se forme l'image</span><span class="schema__label schema__label--center" style="--x:82.6%;--y:95.1%">La cornée, de face</span></div>
+          <div class="schema__labels"><span class="schema__label schema__label--start" style="--x:2.5%;--y:39.7%;--w:6.6">Épithélium</span><span class="schema__label schema__label--start" style="--x:2.5%;--y:54.1%;--w:4.4">Stroma</span><span class="schema__label schema__label--start" style="--x:2.5%;--y:67.8%;--w:7.1">Endothélium</span><span class="schema__label schema__label--center" style="--x:36.3%;--y:93.3%;--w:12">Épaisseurs exagérées</span><span class="schema__label schema__label--center schema__label--accent from-2 until-2" style="--x:21.3%;--y:25%;--w:10.9">Volet et charnière</span><span class="schema__label schema__label--center schema__label--accent from-3 until-3" style="--x:36.3%;--y:26.7%;--w:8.2">Laser excimer</span><span class="schema__label schema__label--center from-5" style="--x:36.3%;--y:28.7%;--w:10.9">Lentille-pansement</span><span class="schema__label schema__label--center" style="--x:84%;--y:45%;--w:11.5">Où se forme l'image</span><span class="schema__label schema__label--center" style="--x:84%;--y:95.3%;--w:10.9">La cornée, de face</span></div>
         </div>
       </div>
     </figure></div>
@@ -429,7 +451,7 @@ delete root.dataset.hero;
             <a href="../details/laser#bilan">
               <span class="itinerary__num" aria-hidden="true">01</span>
               <span class="itinerary__title">Bilan clinique pré-opératoire</span>
-              <span class="itinerary__topics">Contenu de la consultation · Entretien · Programmation de la chirurgie</span>
+              <span class="itinerary__topics">Contenu de la consultation · Entretien · Programmation de la chirurgie</span>
               <svg class="icon icon--arrow-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 12h14"/><path pathLength="1" d="m12 5 7 7-7 7"/></svg>
             </a>
           </li>
@@ -437,7 +459,7 @@ delete root.dataset.hero;
             <a href="../details/laser#preparer">
               <span class="itinerary__num" aria-hidden="true">02</span>
               <span class="itinerary__title">Préparer l'intervention</span>
-              <span class="itinerary__topics">Allez chercher vos traitements · Contactez votre assurance complémentaire / mutuelle · Enlevez vos lentilles ! Pas de maquillage · Anticipez la route</span>
+              <span class="itinerary__topics">Allez chercher vos traitements · Contactez votre assurance complémentaire / mutuelle · Enlevez vos lentilles ! Pas de maquillage · Anticipez la route</span>
               <svg class="icon icon--arrow-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 12h14"/><path pathLength="1" d="m12 5 7 7-7 7"/></svg>
             </a>
           </li>
@@ -445,7 +467,7 @@ delete root.dataset.hero;
             <a href="../details/laser#apres">
               <span class="itinerary__num" aria-hidden="true">03</span>
               <span class="itinerary__title">Vous venez d'être opéré(e) : que faire ?</span>
-              <span class="itinerary__topics">Quand puis-je rentrer à mon domicile · Quand vais-je revoir ? Vais-je avoir mal · Quand dois-je commencer à mettre les gouttes · Qui doit m'instiller les gouttes · Quand aura lieu le contrôle post-opératoire</span>
+              <span class="itinerary__topics">Quand puis-⁠je rentrer à mon domicile · Quand vais-⁠je revoir ? Vais-⁠je avoir mal · Quand dois-⁠je commencer à mettre les gouttes · Qui doit m'instiller les gouttes · Quand aura lieu le contrôle post-opératoire</span>
               <svg class="icon icon--arrow-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 12h14"/><path pathLength="1" d="m12 5 7 7-7 7"/></svg>
             </a>
           </li>
@@ -486,8 +508,8 @@ delete root.dataset.hero;
     <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
-        <p class="label label--light">Rendez-vous en ligne</p>
-        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-vous</span></span></span></span></p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
+        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-⁠vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-⁠vous</span></span></span></span></p>
         <div class="footer-cta__actions">
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>

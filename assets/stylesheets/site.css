@@ -110,6 +110,12 @@
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* The circle of the menu (.menu), and of the page left closing like it (cross-page transitions).
+     Opening: the movement it had going to 150% in 0.85 s with --ease-in-out, cut where it covers the
+     screen (0.61 s, 90% of that radius on a screen of 1384 x 807: the part of that curve up to there,
+     brought to 0-1). Closing: the same movement backwards. */
+  --ease-menu-open: cubic-bezier(0.73, 0, 0.6, 0.72);
+  --ease-menu-close: cubic-bezier(0.4, 0.28, 0.27, 1);
   --shadow-soft: 0 24px 60px -32px rgba(13, 26, 43, 0.35);
   --shadow-lift: 0 34px 80px -36px rgba(13, 26, 43, 0.5);
 }
@@ -190,7 +196,8 @@ h4 {
   text-wrap: balance;
 }
 
-/* Phones: the large letters of a title may hyphenate a long word rather than overflow. */
+/* Phones: the large letters of a title may hyphenate a long word rather than overflow; only a long
+   one (balanced lines cut "commen-cer", "consul-ter", "mala-dies" with room left on the line). */
 @media (max-width: 640px) {
   h1,
   h2,
@@ -198,6 +205,7 @@ h4 {
   h4 {
     overflow-wrap: break-word;
     hyphens: auto;
+    hyphenate-limit-chars: 10 4 4;
   }
 }
 
@@ -533,6 +541,12 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   display: block;
   margin-top: 0.12em;
   text-align: right;
+}
+
+/* A little room under the giant word when a second line follows: its p, g and j reached into the
+   letters below ("paupière" over "à", "ophtalmologistes" over "écoute"). */
+.giant:has(+ .giant-title__rest) > span {
+  padding-bottom: 0.1em;
 }
 
 .giant-title {
@@ -1080,25 +1094,12 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
   transition: background-color 0.4s, box-shadow 0.4s;
 }
 
+/* A nearly opaque bar rather than a frosted glass: the page moving under it at every frame of a
+   scroll, the graphics chip blurred it again at every frame (on a phone), and Firefox readied that
+   blur at the first scroll of each visit, the page stopping 0.08 s. */
 .site-header.is-scrolled .site-header__bar {
-  background: rgba(246, 244, 239, 0.88);
+  background: rgba(246, 244, 239, 0.97);
   box-shadow: 0 1px 0 var(--c-line);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
-}
-
-/* On touch screens, a nearly opaque bar instead of a frosted glass: the page moving under it at every
-   frame of a scroll, the phone's graphics chip blurred it again at every frame. */
-@media (hover: none) {
-  .site-header.is-scrolled .site-header__bar {
-    background: rgba(246, 244, 239, 0.97);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
-    background: rgba(10, 20, 36, 0.96);
-  }
 }
 
 .site-header__progress {
@@ -1285,8 +1286,6 @@ html[data-hero="dark"] .site-header:not(.is-scrolled) {
 html.is-menu-open .site-header__bar {
   background: transparent;
   box-shadow: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
 }
 
 html.is-menu-open .site-header .brand,
@@ -1449,7 +1448,7 @@ html.is-menu-open .site-header :is(.site-nav, .site-header__phone, .text-size, .
 }
 
 html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
-  background: rgba(10, 20, 36, 0.84);
+  background: rgba(10, 20, 36, 0.96);
   box-shadow: 0 1px 0 var(--c-line-dark);
 }
 
@@ -1466,13 +1465,16 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   color: #fff;
   visibility: hidden;
   clip-path: circle(0 at calc(100% - 3.5rem) 2.6rem);
-  transition: clip-path 0.55s var(--ease-in-out), visibility 0s linear 0.55s;
+  transition: clip-path 0.55s var(--ease-menu-close), visibility 0s linear 0.55s;
 }
 
+/* Open, the circle goes as far as the corner of the screen farthest from the button (1px more for
+   the pixel of that corner): closing from 150%, it stayed off the screen for its first 0.15 s, and
+   nothing moved after the click. */
 .menu.is-open {
   visibility: visible;
-  clip-path: circle(150% at calc(100% - 3.5rem) 2.6rem);
-  transition: clip-path 0.85s var(--ease-in-out), visibility 0s;
+  clip-path: circle(calc(hypot(100vw - 3.5rem, 100vh - 2.6rem) + 1px) at calc(100% - 3.5rem) 2.6rem);
+  transition: clip-path 0.61s var(--ease-menu-open), visibility 0s;
 }
 
 .menu::before {
@@ -1872,6 +1874,15 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   letter-spacing: -0.012em;
 }
 
+/* Phones: the whole width and whole words ("cabi- / net d'ophtalmo- / logie" left a third of each
+   line empty). */
+@media (max-width: 640px) {
+  .hero__title-sub {
+    max-width: none;
+    hyphens: manual;
+  }
+}
+
 .hero__doctors {
   color: rgba(255, 255, 255, 0.78);
   font-size: var(--fs-lead);
@@ -1894,9 +1905,10 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   padding: 1.1rem 1.2rem 1.15rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: var(--r-lg);
-  background: rgba(9, 19, 34, 0.58);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  /* A dark glass rather than a frosted one: the iris under it drawn again at every frame, the
+     graphics chip blurred it again at every frame, and Firefox readied that blur at the first visit
+     of each session (a frame lost as the panel came). */
+  background: rgba(9, 19, 34, 0.8);
 }
 
 .hud__label {
@@ -1916,16 +1928,6 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   background: var(--c-sun);
   box-shadow: 0 0 0 4px rgba(239, 178, 74, 0.18);
   animation: hud-blink 2.4s ease-in-out infinite;
-}
-
-/* On touch screens the panel lies over the iris, drawn again at every frame: a frosted glass would
-   be blurred again at every frame by the phone's graphics chip. A darker glass instead. */
-@media (hover: none) {
-  .hud {
-    background: rgba(9, 19, 34, 0.8);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
 }
 
 @keyframes hud-blink {
@@ -1962,7 +1964,13 @@ html[data-hero="night"] .site-header.is-scrolled .site-header__bar {
   height: 64px;
   margin-top: 0.9rem;
   border-block: 1px solid rgba(255, 255, 255, 0.12);
-  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 25%);
+  /* Four lines, one each quarter (one gradient repeated had Firefox ready a way of drawing of its
+     own, see .note). */
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.06) 0 0) 0 0 / 1px 100% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.06) 0 0) 25% 0 / 1px 100% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.06) 0 0) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(rgba(255, 255, 255, 0.06) 0 0) 75% 0 / 1px 100% no-repeat;
 }
 
 .hud__hint {
@@ -2466,6 +2474,12 @@ a.contact-band__item:hover .contact-band__value {
   font: 500 0.8125rem/1 var(--font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* The "new" badge rides on the tag of the photo (in the body, beside a long name, it went to a line
+   of its own and lowered that card under the other); it does not make the tag taller. */
+.cab-card__tag .badge {
+  margin-block: -0.32rem;
 }
 
 .cab-card__body {
@@ -3325,6 +3339,12 @@ a.contact-band__item:hover .contact-band__value {
 .schema [class*="from-"],
 .schema [class*="until-"] {
   transition: opacity 0.3s var(--ease-out), transform 0.4s var(--ease-out);
+}
+
+/* (Drawn parts turn and grow around themselves. Not the labels: on an HTML box, fill-box is its
+   content box, which moved the labels of the steps by their padding.) */
+.schema svg [class*="from-"],
+.schema svg [class*="until-"] {
   transform-box: fill-box;
 }
 
@@ -3363,15 +3383,18 @@ a.contact-band__item:hover .contact-band__value {
 
 .schema__label {
   position: absolute;
-  top: var(--y);
-  left: var(--x);
+  /* At its place in the drawing; a label that would go past the edge at this size slides inward,
+     only as far as needed (--w: its width in em, from schemas.js; the margins are its 8 units). */
+  top: clamp(calc(1.333% + 0.9em), var(--y), calc(98.667% - 0.9em));
+  left: clamp(calc(1% + var(--ax, 0.5) * var(--w, 0) * 1em), var(--x), calc(99% - (1 - var(--ax, 0.5)) * var(--w, 0) * 1em));
   padding: 0.3em 0.6em;
   border-radius: var(--r-sm);
   background: rgba(251, 250, 247, 0.86);
   color: var(--schema-ink);
-  /* Sized on the drawing, not the window, so the labels keep their place at every width
-     (schemas.js keeps them inside the frame for this size). */
-  font: 600 clamp(0.6rem, 2.5cqi, 0.9375rem)/1.2 var(--font-body);
+  /* Sized on the drawing, not the window, so the labels keep their place at every width: on a
+     phone 3.6% of the drawing (13 to 14px on most), on a computer 15px (schemas.js checks that
+     they do not overlap at the largest of these sizes). */
+  font: 600 clamp(0.6rem, 3.6cqi, 0.9375rem)/1.2 var(--font-body);
   white-space: nowrap;
   transform: translate(var(--tx, -50%), -50%);
   transition: opacity 0.3s var(--ease-out);
@@ -3379,10 +3402,12 @@ a.contact-band__item:hover .contact-band__value {
 
 .schema__label--start {
   --tx: 0%;
+  --ax: 0;
 }
 
 .schema__label--end {
   --tx: -100%;
+  --ax: 1;
 }
 
 .schema__label--warn {
@@ -3568,8 +3593,10 @@ a.contact-band__item:hover .contact-band__value {
   text-transform: uppercase;
 }
 
+/* (Never narrowed by a title on two lines, on a phone: its word touched its edge.) */
 .schema__play {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 0.5rem;
   min-height: 44px;
@@ -3673,8 +3700,9 @@ html:not(.js) .schema__play {
   stroke: none;
 }
 
+/* (Its opacity, 0.55, is given layer by layer for its soft edge: softShape in schemas.js.) */
 .schema__svg .loss {
-  fill: rgba(70, 82, 100, 0.55);
+  fill: rgb(70, 82, 100);
   stroke: none;
 }
 
@@ -3721,8 +3749,8 @@ html:not(.js) .schema__play {
   stroke-width: calc(0.5px * var(--stroke));
 }
 
+/* (Filled with a soft gradient, as the scotoma and the veil below: schemas.js.) */
 .schema__svg .cotton {
-  fill: #f2ece0;
   stroke: none;
   opacity: 0.92;
 }
@@ -3832,7 +3860,6 @@ html:not(.js) .schema__play {
 }
 
 .schema__svg .scotoma {
-  fill: rgba(70, 82, 100, 0.5);
   stroke: none;
 }
 
@@ -3967,7 +3994,7 @@ html:not(.js) .schema__play {
 }
 
 .schema__svg .veil {
-  fill: rgba(88, 96, 108, 0.62);
+  stroke: none;
 }
 
 /* Surgery drawings: instruments, implant, cornea layers, face views, eyelid. */
@@ -6057,7 +6084,9 @@ html:not(.js) .schema__play {
   cursor: pointer;
 }
 
-.schema__bar {
+/* (The bar of a dot, not .schema__bar: that one holds the title and the pause button of a full
+   schema, which this rule, coming later, flattened to 4 px under its steps.) */
+.schema__dot-bar {
   position: relative;
   display: block;
   height: 4px;
@@ -6067,7 +6096,7 @@ html:not(.js) .schema__play {
   background: var(--c-line-2);
 }
 
-.schema__bar::after {
+.schema__dot-bar::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -6076,16 +6105,16 @@ html:not(.js) .schema__play {
   transform-origin: left;
 }
 
-.schema__dot.is-active .schema__bar::after {
+.schema__dot.is-active .schema__dot-bar::after {
   transform: scaleX(1);
 }
 
-.schema.is-timing .schema__dot.is-active .schema__bar::after {
+.schema.is-timing .schema__dot.is-active .schema__dot-bar::after {
   transform: scaleX(0);
   animation: schema-progress var(--step-duration, 4s) linear infinite;
 }
 
-.schema__dot:hover .schema__bar {
+.schema__dot:hover .schema__dot-bar {
   background: var(--schema-thin);
 }
 
@@ -8420,15 +8449,20 @@ html:not(.js) .schema__play {
   text-underline-offset: 3px;
 }
 
+/* (Its dashed edge is drawn as an image, the colour of --c-line-2 and the corners of --r: a dashed
+   border had Firefox ready a way of drawing of its own at the first one of a visit, the page
+   stopping 0.06 to 0.1 s. Same for the dashed and ruled lines below.) */
 .note {
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
   margin-top: 2rem;
   padding: 1.15rem 1.35rem;
-  border: 1px dashed var(--c-line-2);
+  border: 1px solid transparent;
   border-radius: var(--r);
-  background: var(--c-paper-2);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' rx='18' fill='none' stroke='rgba(13,26,43,0.3)' stroke-width='2' stroke-dasharray='4 3'/%3E%3C/svg%3E") border-box,
+    var(--c-paper-2);
   color: var(--c-ink-2);
 }
 
@@ -8898,7 +8932,10 @@ html:not(.js) .schema__play {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
+  /* Under the signs it was the last thing of the section, a short band of paper left between it and
+     the dark footer: it comes first (read, it still comes after the signs). */
   .urgent__call {
+    order: -1;
     grid-column: 1 / -1;
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   }
@@ -8974,6 +9011,8 @@ html[data-hero="night"] :focus-visible {
   list-style: none;
 }
 
+/* (A halo of the night around the letters: over the lines of the eye behind, "Chirurgie de la
+   rétine" read badly.) */
 .bloc-index a {
   position: relative;
   display: grid;
@@ -8984,6 +9023,7 @@ html[data-hero="night"] :focus-visible {
   color: #fff;
   font: 560 clamp(1.25rem, 1.05rem + 0.55vw, 1.6rem)/1.2 var(--font-display);
   text-decoration: none;
+  text-shadow: 0 0 10px var(--c-night), 0 0 3px var(--c-night);
   transition: color 0.3s;
 }
 
@@ -9257,6 +9297,14 @@ html[data-chapters] {
 
   .chapter-nav__link::after {
     right: 0;
+  }
+
+  /* With the largest text the five names do not fit: they slide within the bar (the page itself was
+     23 px wider than the screen). */
+  .chapter-nav .container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
   }
 }
 
@@ -10401,10 +10449,11 @@ html[data-chapters] {
   stroke-dasharray: 3 5;
 }
 
+/* (Its letters spaced a little less than the names: spaced as them, it went past the edge of the lake.) */
 .where-map__water {
   fill: rgba(168, 200, 243, 0.6);
   font: 500 13px/1 var(--font-mono);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
   text-anchor: middle;
 }
 
@@ -10594,8 +10643,9 @@ html[data-chapters] {
   flex: none;
 }
 
+/* (Line height a little over 1: the accents of a line met the p and g of the line above.) */
 .journey-cta__title {
-  font: 560 clamp(2.2rem, 1.3rem + 3.2vw, 4.4rem)/1 var(--font-display);
+  font: 560 clamp(2.2rem, 1.3rem + 3.2vw, 4.4rem)/1.08 var(--font-display);
   letter-spacing: -0.02em;
 }
 
@@ -10630,7 +10680,8 @@ html[data-chapters] {
   top: 50%;
   right: 8px;
   left: 8px;
-  border-top: 2px dashed rgba(255, 255, 255, 0.38);
+  height: 2px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='2'%3E%3Cline x1='0' y1='1' x2='100%25' y2='1' stroke='rgba(255,255,255,0.38)' stroke-width='2' stroke-dasharray='6 6'/%3E%3C/svg%3E") 0 0 / 100% 2px no-repeat;
 }
 
 .journey-cta__stop {
@@ -10698,11 +10749,19 @@ html[data-chapters] {
 
 .journey-cta--plate .journey-cta__title {
   font-size: clamp(1.8rem, 1.1rem + 2.2vw, 3.1rem);
-  line-height: 1.04;
+  line-height: 1.1;
 }
 
 .journey-cta--plate .journey-cta__arrow {
   width: clamp(3.75rem, 5.5vw, 5rem);
+}
+
+/* (On a phone the button of a plate is on one column too, its arrow above the title: its two
+   columns, set after the rule of phones above, put the arrow over the start of the title.) */
+@media (max-width: 760px) {
+  .journey-cta--plate {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .more {
@@ -10793,7 +10852,7 @@ html[data-chapters] {
   border-radius: 6px;
   background:
     linear-gradient(var(--op-ink, var(--c-blue)) 0 0) 14% 14% / 46% 6% no-repeat,
-    repeating-linear-gradient(180deg, transparent 0 7px, rgba(13, 26, 43, 0.14) 7px 9px) 14% 34% / 72% 52% no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 54' preserveAspectRatio='none' fill='rgba(13,26,43,0.14)'%3E%3Crect y='7' width='100' height='2'/%3E%3Crect y='16' width='100' height='2'/%3E%3Crect y='25' width='100' height='2'/%3E%3Crect y='34' width='100' height='2'/%3E%3Crect y='43' width='100' height='2'/%3E%3Crect y='52' width='100' height='2'/%3E%3C/svg%3E") 14% 34% / 72% 52% no-repeat,
     #fff;
   box-shadow: 0 14px 24px -16px rgba(13, 26, 43, 0.45);
   transform: translateX(calc(var(--k) * 8px)) rotate(calc(var(--k) * 4deg));
@@ -10885,6 +10944,12 @@ html[data-chapters] {
 @media (max-width: 760px) {
   .next-link {
     justify-self: start;
+  }
+
+  /* The label on its own line, the title and its arrow together under it (beside a short title,
+     the label left the arrow alone on a line). */
+  .next-link__label {
+    flex-basis: 100%;
   }
 }
 
@@ -11043,6 +11108,12 @@ ul.steps-nav,
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* (A list that is the nav itself keeps the room above it: reset with the margins of the list, it
+   stuck to the text before it.) */
+ul.steps-nav {
+  margin-top: 2rem;
 }
 
 .steps-nav a {
@@ -11308,8 +11379,11 @@ ul.steps-nav,
 
 /* ---------- Intervention pages: the operation as a short film ---------- */
 
+/* (What its drawing lets out, the rings of its targets, stops at the edges of the screen: with the
+   largest text, a ring made the page 3 px wider than a phone.) */
 .film {
   --film-duration: 3s;
+  overflow-x: clip;
   padding-block: clamp(3rem, 7vw, 6rem);
   background: var(--c-night);
   color: #fff;
@@ -11631,6 +11705,7 @@ ul.steps-nav,
   color: var(--op-ink, var(--c-blue));
   font: 600 var(--fs-label)/1 var(--font-mono);
   letter-spacing: 0.12em;
+  white-space: nowrap;
 }
 
 .itinerary__num::before {
@@ -11678,9 +11753,11 @@ ul.steps-nav,
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* (The number column holds its dash and two figures: at 3.5rem the figures went one under the
+     other.) */
   .itinerary__step a,
   .itinerary__step + .itinerary__step a {
-    grid-template-columns: 3.5rem minmax(0, 1fr);
+    grid-template-columns: 4rem minmax(0, 1fr);
     padding: 1.1rem 0;
     border-left: 0;
   }
@@ -11898,7 +11975,7 @@ main[data-op="retine"] {
   border-radius: 3px;
   background:
     linear-gradient(var(--doc-accent, var(--c-blue)) 0 0) 0.55rem 0.7rem / 1.6rem 3px no-repeat,
-    repeating-linear-gradient(var(--c-line-2) 0 1px, transparent 1px 7px) 0.55rem 1.5rem / calc(100% - 1.1rem) 2.95rem no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 47.2' preserveAspectRatio='none' fill='rgba(13,26,43,0.3)'%3E%3Crect y='0' width='100' height='1'/%3E%3Crect y='7' width='100' height='1'/%3E%3Crect y='14' width='100' height='1'/%3E%3Crect y='21' width='100' height='1'/%3E%3Crect y='28' width='100' height='1'/%3E%3Crect y='35' width='100' height='1'/%3E%3Crect y='42' width='100' height='1'/%3E%3C/svg%3E") 0.55rem 1.5rem / calc(100% - 1.1rem) 2.95rem no-repeat,
     #fff;
   box-shadow: 0 12px 20px -14px rgba(13, 26, 43, 0.55);
   transform-origin: 50% 135%;
@@ -11906,14 +11983,10 @@ main[data-op="retine"] {
   transition: rotate 0.8s var(--ease-out), translate 0.5s var(--ease-out), box-shadow 0.5s;
 }
 
-/* The grid: white lines on black, and the point to look at in the middle. */
+/* The grid: white lines on black, and the point to look at in the middle, all on the black square
+   (drawn on the sheet itself, under it, they were hidden by it). */
 .doc-stack--grid .doc-stack__sheet {
-  background:
-    radial-gradient(circle, #fff 0 2px, transparent 2.5px) 50% 58% / 100% 100% no-repeat,
-    linear-gradient(90deg, rgba(255, 255, 255, 0.75) 1px, transparent 1px) 0.4rem 0.95rem / 5px 5px,
-    linear-gradient(rgba(255, 255, 255, 0.75) 1px, transparent 1px) 0.4rem 0.95rem / 5px 5px,
-    #fff;
-  background-clip: border-box;
+  background: #fff;
 }
 
 .doc-stack--grid .doc-stack__sheet::before {
@@ -11921,7 +11994,9 @@ main[data-op="retine"] {
   position: absolute;
   inset: 0.9rem 0.4rem 0.4rem;
   z-index: -1;
-  background: #141414;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Cdefs%3E%3Cpattern id='g' width='5' height='5' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 0.5H5M0.5 0V5' stroke='rgba(255,255,255,0.75)'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23g)'/%3E%3Ccircle cx='50%25' cy='50%25' r='2.2' fill='%23fff'/%3E%3C/svg%3E"),
+    #141414;
 }
 
 .doc-stack--grid .doc-stack__sheet {
@@ -11970,9 +12045,11 @@ main[data-op="retine"] {
     transform-origin: 100% 50%;
   }
 
-  /* The fanned sheets never widen the page. */
+  /* The fanned sheets never widen the page: they may reach into its margin, not past it (cut at the
+     edge of the text, the last sheet and its shadow looked sliced). */
   .doc-group {
     overflow-x: clip;
+    overflow-clip-margin: var(--gutter);
   }
 }
 
@@ -13015,22 +13092,11 @@ main[data-op="retine"] {
   height: 2.75rem;
   border: 1.5px solid var(--c-line-2);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
+  /* (Not a frosted glass over the scene, drawn again at every frame: see .hud.) */
+  background: rgba(255, 255, 255, 0.92);
   color: var(--c-ink);
   cursor: pointer;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   transition: background-color 0.3s, border-color 0.3s, color 0.3s, scale 0.16s var(--ease-out);
-}
-
-/* (On touch screens no frosted glass over the scene, which is drawn again at every frame: a more
-   opaque button instead.) */
-@media (hover: none) {
-  .scene3d__play {
-    background: rgba(255, 255, 255, 0.92);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
 }
 
 .scene3d__play[hidden] {
@@ -15098,7 +15164,7 @@ html:not(.vt-solo) .site-header {
 ::view-transition-old(root) {
   z-index: 1;
   mix-blend-mode: normal;
-  animation: vt-out 0.55s var(--ease-in-out) both;
+  animation: vt-out 0.55s var(--ease-menu-close) both;
 }
 
 ::view-transition-new(root) {
@@ -15106,9 +15172,12 @@ html:not(.vt-solo) .site-header {
   animation: none;
 }
 
+/* From the corner of the screen farthest from the button, as the open menu: from 150%, the circle
+   stayed off the screen for the first quarter of its time, and nothing moved for 0.3 s after the
+   click. */
 @keyframes vt-out {
   from {
-    clip-path: circle(150% at calc(100% - 3.5rem) 2.6rem);
+    clip-path: circle(calc(hypot(100vw - 3.5rem, 100vh - 2.6rem) + 1px) at calc(100% - 3.5rem) 2.6rem);
   }
 
   to {
@@ -15118,11 +15187,20 @@ html:not(.vt-solo) .site-header {
 
 /* Where the browser has no cross-page transitions but has them inside a page (Firefox), the page
    left closes the same way before going (crossPage(), _build/build.js): under it, the page has
-   taken the colours of the next one and let its content go. The header stays where both pages show
-   it the same (it goes too when the page is left from the menu or the header changes colours). */
-.is-leaving body > :not(.site-header),
-.is-leaving.vt-solo body > * {
+   taken the colours of the next one and let its content go, and its header shows as it will at the
+   top of the next page (menu closed, site.js). With an empty page there instead, nothing was left on
+   the screen until the next page came. */
+.is-leaving body > :not(.site-header) {
   visibility: hidden;
+}
+
+/* The page reached that way holds its entrances until its first paint is on the screen
+   (crossPage()): that paint drawn 0.1 to 0.15 s later when the page was not yet shown since Firefox
+   was started, its title played its entrance unseen, then stopped in the middle of it. */
+.is-held body *,
+.is-held body *::before,
+.is-held body *::after {
+  animation-play-state: paused !important;
 }
 
 /* ---------- Reduced motion ---------- */
@@ -15460,7 +15538,10 @@ html:not(.vt-solo) .site-header {
   border-right: 1px solid var(--c-line-2);
 }
 
+/* (No room kept on the right of the right column, at the edge of the grid: "rétinographies" went
+   past it.) */
 .exam:nth-child(even) {
+  padding-right: 0;
   padding-left: clamp(1rem, 2.5vw, 2rem);
 }
 
@@ -15589,7 +15670,9 @@ html:not(.vt-solo) .site-header {
   font-weight: 600;
 }
 
+/* (Room under it: the j of "jours" reached into the line below.) */
 .after__figure {
+  padding-bottom: 0.1em;
   color: var(--c-blue);
   font: 600 clamp(4rem, 2rem + 6vw, 8.5rem)/0.9 var(--font-display);
   letter-spacing: -0.03em;

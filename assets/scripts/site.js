@@ -123,10 +123,11 @@
   });
 
   // Going to another page, the menu stays open until that page shows: it opens over the menu where
-  // the browser has the cross-page transitions (site.css), and takes its place in the others
-  // (Firefox). Closed at the click, the menu was caught half closed: under the header of the page in
-  // the transition, cut in the middle of its closing in Firefox. It is closed at once if the visitor
-  // comes back to this page kept by the browser.
+  // the browser has the cross-page transitions (site.css); in Firefox, the menu closes on its button
+  // with the page left, over the top of the next page, where it is closed at once (crossPage(),
+  // _build/build.js). Closed at the click, the menu was caught half closed: under the header of the
+  // page in the transition, cut in the middle of its closing in Firefox. It is closed at once if the
+  // visitor comes back to this page kept by the browser.
   menu?.addEventListener('click', (event) => {
     const link = event.target.closest('a');
     if (!link) {
@@ -139,15 +140,24 @@
       setMenuOpen(false);
     }
   });
-  window.addEventListener('pageshow', (event) => {
-    if (!event.persisted || !root.classList.contains('is-menu-open')) {
-      return;
-    }
+  const closeMenuAtOnce = () => {
     menu.style.transition = 'none';
     setMenuOpen(false);
     // The closed menu is applied before its transition comes back.
     window.getComputedStyle(menu).getPropertyValue('clip-path');
     menu.style.removeProperty('transition');
+  };
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted || !root.classList.contains('is-menu-open')) {
+      return;
+    }
+    closeMenuAtOnce();
+  });
+  document.addEventListener('page:leave', () => {
+    const isMenuOpen = root.classList.contains('is-menu-open');
+    if (isMenuOpen) {
+      closeMenuAtOnce();
+    }
   });
 
   document.addEventListener('keydown', (event) => {
@@ -208,6 +218,14 @@
   // browser lay the page out early.)
   const view = { y: 0, height: 0, width: 0, maxScroll: 0, pageHeight: 0 };
   let lastScrollY = view.y;
+  // The header goes away as the visitor scrolls down, not when the browser puts the page back where
+  // it was (back button, reload, which Firefox now always does for a page of the site: crossPage(),
+  // _build/build.js): no scroll is the visitor's before a first wheel, touch, key or press.
+  let hasVisitorActed = false;
+  const noteVisitor = () => {
+    hasVisitorActed = true;
+  };
+  ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach((type) => window.addEventListener(type, noteVisitor, { capture: true, once: true, passive: true }));
   // The top of an element in the page, as laid out (the transforms it may carry do not count).
   const pageTop = (element) => {
     let top = 0;
@@ -230,7 +248,7 @@
     const delta = y - lastScrollY;
     const isNearTop = y < 240;
     const isHidden = header.classList.contains('is-hidden');
-    if (delta > 6 && !isHidden && !isNearTop) {
+    if (delta > 6 && !isHidden && !isNearTop && hasVisitorActed) {
       const isMenuOpen = root.classList.contains('is-menu-open');
       const hasFocusInside = header.contains(document.activeElement) && document.activeElement !== document.body;
       const hasOpenDropdown = Boolean(header.querySelector('.dropdown__menu:not([hidden])'));
@@ -293,6 +311,15 @@
     requestScrollTasks();
   };
   window.addEventListener('scroll', requestScrollTasks, { passive: true });
+  // Left in Firefox, the page closes over the top of the next one (crossPage(), _build/build.js): its
+  // header shows as it will there, at the top of a page. Back on this page kept by the browser, the
+  // header is again as the scroll has it.
+  document.addEventListener('page:leave', () => header.classList.remove('is-scrolled', 'is-hidden'));
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      requestScrollTasks();
+    }
+  });
   // A phone's bar of address folding away as the page scrolls only changes the height of the screen:
   // nothing is measured again (the places in the page stay the same). A new width measures all.
   window.addEventListener('resize', () => {
@@ -815,8 +842,10 @@
       });
       active = spot;
       figure.dataset.active = spot ? spot.item.dataset.spot : '';
-      // The gesture of the eyelids is a slow double blink.
-      if (spot?.item.dataset.spot === 'paupieres') {
+      // The gesture of the eyelids is a slow double blink, played on screen only (played as the page
+      // loaded, far below, it reshaped the lids and their lashes at every frame of the arrival).
+      const isEyelids = spot?.item.dataset.spot === 'paupieres';
+      if (isEyelids && isOnScreen) {
         blink();
         window.setTimeout(blink, 480);
       }

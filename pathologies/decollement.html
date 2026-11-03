@@ -26,7 +26,7 @@
   <link rel="preload" href="../assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../assets/fonts/atkinson-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=45a02fdc">
+  <link rel="stylesheet" href="../assets/stylesheets/site.min.css?v=6ebb9711">
   <script>(function crossPage(heroes) {
 const KEY = 'ophta-vt';
 const root = document.documentElement;
@@ -96,6 +96,23 @@ event.viewTransition.finished.finally(takeBack);
 });
 const canFoldHere = !('onpagereveal' in window) && 'startViewTransition' in document;
 if (canFoldHere) {
+addEventListener('pageshow', () => addEventListener('unload', () => {}), { once: true });
+const ARRIVAL = 'ophta-arrival';
+const release = () => root.classList.remove('is-held');
+try {
+const isArrival = sessionStorage.getItem(ARRIVAL) === pathOf(location.href);
+sessionStorage.removeItem(ARRIVAL);
+if (isArrival) {
+setTimeout(release, 1500);
+root.classList.add('is-held');
+new PerformanceObserver((list, observer) => {
+observer.disconnect();
+requestAnimationFrame(() => requestAnimationFrame(release));
+}).observe({ type: 'paint', buffered: true });
+}
+} catch (error) {
+release();
+}
 const hero = root.dataset.hero;
 let isLeaving = false;
 document.addEventListener('click', (event) => {
@@ -111,10 +128,15 @@ isLeaving = true;
 const to = pathOf(link.href);
 const go = () => location.assign(link.href);
 fetch(link.href).catch(() => {});
+try {
+sessionStorage.setItem(ARRIVAL, to);
+} catch (error) {
+}
 root.classList.toggle('vt-solo', isSoloTo(to));
 try {
 document.startViewTransition(() => {
 root.classList.add('is-leaving');
+document.dispatchEvent(new Event('page:leave'));
 if (to in heroes) {
 root.dataset.hero = heroes[to];
 } else {
@@ -142,11 +164,11 @@ delete root.dataset.hero;
   <script src="../assets/scripts/view.js?v=ace5a464" defer></script>
   <script src="../assets/vendor/gsap/gsap.min.js?v=9396f256" defer></script>
   <script src="../assets/vendor/gsap/SplitText.min.js?v=6c4c7716" defer></script>
-  <script src="../assets/scripts/site.js?v=23da15a2" defer></script>
+  <script src="../assets/scripts/site.js?v=55a3650b" defer></script>
   <script src="../assets/scripts/motion.js?v=cd19337d" defer></script>
-  <script src="../assets/scripts/drawing.js?v=dfcf8c14" defer></script>
-  <script src="../assets/scripts/stars.js?v=8c24e288" defer></script>
-  <script src="../assets/scripts/living.js?v=87bada28" defer></script>
+  <script src="../assets/scripts/drawing.js?v=523ca752" defer></script>
+  <script src="../assets/scripts/stars.js?v=2d25a872" defer></script>
+  <script src="../assets/scripts/living.js?v=e4a0c260" defer></script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/*.pdf"}},{"not":{"selector_matches":"[download], [target=_blank]"}}]},"eagerness":"moderate"}]}</script>
   <script type="application/ld+json">
 {
@@ -249,9 +271,9 @@ delete root.dataset.hero;
           </div>
         </div>
         <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--primary btn--sm" aria-expanded="false" aria-controls="rdv-header" data-dropdown-toggle><span class="roll"><span class="roll__text">Rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--end" id="rdv-header" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -281,7 +303,7 @@ delete root.dataset.hero;
           <div class="menu-cabinet"><p class="menu-cabinet__city">Salon-de-Provence</p><p class="menu-cabinet__address">Maison de santé Pôle Morgan<br>133 boulevard Victor Joly<br>13300 Salon-de-Provence</p><a class="menu-cabinet__phone" href="tel:+33484849586"><svg class="icon icon--phone" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>04 84 84 95 86</a></div>
         </div>
         <p class="menu__hours"><svg class="icon icon--clock" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 6v6l4 2"/></svg>Du lundi au vendredi, de 8 h 30 à 19 h</p>
-        <p class="label label--light">Rendez-vous en ligne</p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
         <div class="menu__doctors">
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light btn--sm" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
@@ -317,7 +339,7 @@ delete root.dataset.hero;
           <svg class="schema__svg" viewBox="0 0 800 600" width="800" height="600" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="sd13-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe2f6"/><stop offset="1" stop-color="#f3f1ea"/></linearGradient>
-      <filter id="sd13-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+      <linearGradient id="sd13-veil-4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(88, 96, 108)" stop-opacity="0.004"/><stop offset="0.034" stop-color="rgb(88, 96, 108)" stop-opacity="0.014"/><stop offset="0.069" stop-color="rgb(88, 96, 108)" stop-opacity="0.041"/><stop offset="0.103" stop-color="rgb(88, 96, 108)" stop-opacity="0.098"/><stop offset="0.138" stop-color="rgb(88, 96, 108)" stop-opacity="0.191"/><stop offset="0.172" stop-color="rgb(88, 96, 108)" stop-opacity="0.31"/><stop offset="0.207" stop-color="rgb(88, 96, 108)" stop-opacity="0.429"/><stop offset="0.241" stop-color="rgb(88, 96, 108)" stop-opacity="0.522"/><stop offset="0.276" stop-color="rgb(88, 96, 108)" stop-opacity="0.579"/><stop offset="0.31" stop-color="rgb(88, 96, 108)" stop-opacity="0.606"/><stop offset="0.345" stop-color="rgb(88, 96, 108)" stop-opacity="0.616"/></linearGradient><linearGradient id="sd13-veil-5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(88, 96, 108)" stop-opacity="0.004"/><stop offset="0.026" stop-color="rgb(88, 96, 108)" stop-opacity="0.014"/><stop offset="0.052" stop-color="rgb(88, 96, 108)" stop-opacity="0.041"/><stop offset="0.078" stop-color="rgb(88, 96, 108)" stop-opacity="0.098"/><stop offset="0.104" stop-color="rgb(88, 96, 108)" stop-opacity="0.191"/><stop offset="0.13" stop-color="rgb(88, 96, 108)" stop-opacity="0.31"/><stop offset="0.155" stop-color="rgb(88, 96, 108)" stop-opacity="0.429"/><stop offset="0.181" stop-color="rgb(88, 96, 108)" stop-opacity="0.522"/><stop offset="0.207" stop-color="rgb(88, 96, 108)" stop-opacity="0.579"/><stop offset="0.233" stop-color="rgb(88, 96, 108)" stop-opacity="0.606"/><stop offset="0.259" stop-color="rgb(88, 96, 108)" stop-opacity="0.616"/></linearGradient>
     </defs>
     
     <g class="rays"><g class="march light thin march--slow"><g transform="translate(-63.6 264.9) rotate(0)"><g class="march__run march__run--11"><path d="M-1 0H1M10 0H12M21 0H23M32 0H34M43 0H45M54 0H56M65 0H67M76 0H78M87 0H89M98 0H100M109 0H111M120 0H122M131 0H133M142 0H144"/><path d="M153 0H155" class="march__out march-out-3"/></g></g><g transform="translate(91.9 264.9) rotate(17.6)"><g class="march__run march__run--11"><path d="M8.5 0H10.5M19.5 0H21.5M30.5 0H32.5"/><path d="M-2.5 0H-0.5" class="march__in march-in-3"/><path d="M41.5 0H43.5" class="march__out march-out-3"/></g></g><g transform="translate(133.8 278.2) rotate(6.4)"><g class="march__run march__run--11"><path d="M8.5 0H10.5M19.5 0H21.5M30.5 0H32.5M41.5 0H43.5"/><path d="M-2.5 0H-0.5" class="march__in march-in-3"/><path d="M52.5 0H54.5" class="march__out march-out-16"/></g></g><g transform="translate(195.9 285.2) rotate(3.3)"><g class="march__run march__run--11"><path d="M1 0H3M12 0H14M23 0H25M34 0H36M45 0H47M56 0H58M67 0H69M78 0H80M89 0H91M100 0H102M111 0H113M122 0H124M133 0H135M144 0H146M155 0H157M166 0H168M177 0H179M188 0H190M199 0H201M210 0H212M221 0H223M232 0H234M243 0H245"/><path d="M-10 0H-8" class="march__in march-in-16"/><path d="M254 0H256" class="march__out march-out-3"/></g></g></g><g class="march light thin march--slow"><g transform="translate(-63.6 300) rotate(0)"><g class="march__run march__run--11"><path d="M-1 0H1M10 0H12M21 0H23M32 0H34M43 0H45M54 0H56M65 0H67M76 0H78M87 0H89M98 0H100M109 0H111M120 0H122M131 0H133"/><path d="M142 0H144" class="march__out march-out-13"/></g></g><g transform="translate(86.6 300) rotate(0)"><g class="march__run march__run--11"><path d="M2.8 0H4.8M13.8 0H15.8M24.8 0H26.8"/><path d="M-8.2 0H-6.2" class="march__in march-in-13"/><path d="M35.8 0H37.8" class="march__out march-out-16"/></g></g><g transform="translate(132.2 300) rotate(0)"><g class="march__run march__run--11"><path d="M1.2 0H3.2M12.2 0H14.2M23.2 0H25.2M34.2 0H36.2M45.2 0H47.2"/><path d="M-9.8 0H-7.8" class="march__in march-in-16"/><path d="M56.2 0H58.2" class="march__out march-out-14"/></g></g><g transform="translate(197.3 300) rotate(0)"><g class="march__run march__run--11"><path d="M2.1 0H4.1M13.1 0H15.1M24.1 0H26.1M35.1 0H37.1M46.1 0H48.1M57.1 0H59.1M68.1 0H70.1M79.1 0H81.1M90.1 0H92.1M101.1 0H103.1M112.1 0H114.1M123.1 0H125.1M134.1 0H136.1M145.1 0H147.1M156.1 0H158.1M167.1 0H169.1M178.1 0H180.1M189.1 0H191.1M200.1 0H202.1M211.1 0H213.1M222.1 0H224.1M233.1 0H235.1"/><path d="M-8.9 0H-6.9" class="march__in march-in-14"/><path d="M244.1 0H246.1" class="march__out march-out-18"/></g></g></g><g class="march light thin march--slow"><g transform="translate(-63.6 335.1) rotate(0)"><g class="march__run march__run--11"><path d="M-1 0H1M10 0H12M21 0H23M32 0H34M43 0H45M54 0H56M65 0H67M76 0H78M87 0H89M98 0H100M109 0H111M120 0H122M131 0H133M142 0H144"/><path d="M153 0H155" class="march__out march-out-3"/></g></g><g transform="translate(91.9 335.1) rotate(-17.6)"><g class="march__run march__run--11"><path d="M8.5 0H10.5M19.5 0H21.5M30.5 0H32.5"/><path d="M-2.5 0H-0.5" class="march__in march-in-3"/><path d="M41.5 0H43.5" class="march__out march-out-3"/></g></g><g transform="translate(133.8 321.8) rotate(-6.4)"><g class="march__run march__run--11"><path d="M8.5 0H10.5M19.5 0H21.5M30.5 0H32.5M41.5 0H43.5"/><path d="M-2.5 0H-0.5" class="march__in march-in-3"/><path d="M52.5 0H54.5" class="march__out march-out-16"/></g></g><g transform="translate(195.9 314.8) rotate(-3.3)"><g class="march__run march__run--11"><path d="M1 0H3M12 0H14M23 0H25M34 0H36M45 0H47M56 0H58M67 0H69M78 0H80M89 0H91M100 0H102M111 0H113M122 0H124M133 0H135M144 0H146M155 0H157M166 0H168M177 0H179M188 0H190M199 0H201M210 0H212M221 0H223M232 0H234M243 0H245"/><path d="M-10 0H-8" class="march__in march-in-16"/><path d="M254 0H256" class="march__out march-out-3"/></g></g></g></g>
@@ -354,11 +376,11 @@ delete root.dataset.hero;
     <path d="M746 320V302" class="trunk"/><ellipse cx="746" cy="290" rx="9" ry="14" class="tree"/>
     <g class="from-2"><g class="drift"><circle cx="656" cy="270" r="2.6" class="floater"/><ellipse cx="686" cy="290" rx="7" ry="9" class="floater-ring"/><circle cx="642" cy="304" r="2.6" class="floater"/><circle cx="700" cy="330" r="2.6" class="floater"/></g></g>
     <g class="from-3 until-3 flash"><path d="M746 230Q768 270 754 310" class="light flash-line"/></g>
-    <g class="from-4 until-4" style="filter:url(#sd13-soft)"><rect x="568" y="334" width="216" height="108" class="veil rise-4"/></g>
-    <g class="from-5" style="filter:url(#sd13-soft)"><rect x="568" y="282" width="216" height="151.2" class="veil rise-5"/></g>
+    <g class="from-4 until-4"><rect x="568" y="311.5" width="216" height="130.5" class="veil rise-4" style="fill:url(#sd13-veil-4)"/></g>
+    <g class="from-5"><rect x="568" y="259.5" width="216" height="173.7" class="veil rise-5" style="fill:url(#sd13-veil-5)"/></g>
     <circle cx="676" cy="300" r="2.4" class="dot-ink"/><circle cx="676" cy="300" r="108" class="inset__ring"/></svg></div>
           <div class="schema__spot"><i class="schema__shade" style="--u:var(--s1u);--v:var(--s1v);--r:var(--s1r)"></i><i class="schema__shade" style="--u:var(--s2u);--v:var(--s2v);--r:var(--s2r)"></i><i class="schema__shade" style="--u:var(--s3u);--v:var(--s3v);--r:var(--s3r)"></i><i class="schema__shade" style="--u:var(--s4u);--v:var(--s4v);--r:var(--s4r)"></i><i class="schema__shade" style="--u:var(--s5u);--v:var(--s5v);--r:var(--s5r)"></i></div><div class="schema__target"><div class="schema__target-size" style="--r:var(--s1r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s2r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s3r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s4r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div><div class="schema__target-size" style="--r:var(--s5r)"><svg viewBox="0 0 100 100" focusable="false"><circle class="schema__target-halo" cx="50" cy="50" r="46" pathLength="100"/><path class="schema__target-halo" d="M50 0V10M50 90V100M0 50H10M90 50H100"/><circle cx="50" cy="50" r="46" pathLength="100"/><path d="M50 0V10M50 90V100M0 50H10M90 50H100"/></svg></div></div>
-          <div class="schema__labels" aria-hidden="true"><span class="schema__label schema__label--center until-1" style="--x:33.9%;--y:57.6%">Corps vitré</span><span class="schema__label schema__label--start" style="--x:52.8%;--y:75.2%">Rétine</span><span class="schema__label schema__label--center from-2 until-2" style="--x:34.6%;--y:73.8%">Décollement du vitré</span><span class="schema__label schema__label--center schema__label--warn from-3" style="--x:29.5%;--y:16.6%">Déchirure</span><span class="schema__label schema__label--start schema__label--accent from-4" style="--x:44.8%;--y:16.7%">Liquide sous la rétine</span><span class="schema__label schema__label--start from-5" style="--x:61.3%;--y:52.4%">Macula</span><span class="schema__label schema__label--center schema__label--title" style="--x:83.4%;--y:29.3%">Ce que voit l'œil</span><span class="schema__label schema__label--center from-2 until-2" style="--x:84.2%;--y:61.2%">Mouches volantes</span><span class="schema__label schema__label--center from-3 until-3" style="--x:84.5%;--y:61.2%">Éclairs</span><span class="schema__label schema__label--center schema__label--warn from-4" style="--x:84.5%;--y:61.2%">Voile qui monte</span></div>
+          <div class="schema__labels" aria-hidden="true"><span class="schema__label schema__label--center until-1" style="--x:33.9%;--y:57.6%;--w:7.1">Corps vitré</span><span class="schema__label schema__label--start" style="--x:52.8%;--y:75.2%;--w:4.4">Rétine</span><span class="schema__label schema__label--center from-2 until-2" style="--x:34.6%;--y:66.2%;--w:12">Décollement du vitré</span><span class="schema__label schema__label--center schema__label--warn from-3" style="--x:29.5%;--y:16.6%;--w:6.1">Déchirure</span><span class="schema__label schema__label--start schema__label--accent from-4" style="--x:44.8%;--y:16.7%;--w:13.1">Liquide sous la rétine</span><span class="schema__label schema__label--start from-5" style="--x:61.3%;--y:52.4%;--w:4.4">Macula</span><span class="schema__label schema__label--center schema__label--title" style="--x:84.5%;--y:29.3%;--w:10.4">Ce que voit l'œil</span><span class="schema__label schema__label--center from-2 until-2" style="--x:84.5%;--y:61.2%;--w:9.8">Mouches volantes</span><span class="schema__label schema__label--center from-3 until-3" style="--x:84.5%;--y:61.2%;--w:5">Éclairs</span><span class="schema__label schema__label--center schema__label--warn from-4" style="--x:84.5%;--y:61.2%;--w:9.3">Voile qui monte</span></div>
         </div>
         
       </div>
@@ -442,7 +464,7 @@ delete root.dataset.hero;
     <text x="60" y="62" text-anchor="middle" class="vg-number">15</text>
     <line x1="54" y1="98" x2="66" y2="98"/>
     <path d="M92 40q8 10 0 20M98 34q13 16 0 32" class="vg-ring"/><path d="M28 40q-8 10 0 20M22 34q-13 16 0 32" class="vg-ring"/></svg></figure>
-              <h2><svg class="icon icon--info" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 16v-4"/><path pathLength="1" d="M12 8h.01"/></svg>Quand dois-je consulter ?</h2>
+              <h2><svg class="icon icon--info" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle pathLength="1" cx="12" cy="12" r="10"/><path pathLength="1" d="M12 16v-4"/><path pathLength="1" d="M12 8h.01"/></svg>Quand dois-⁠je consulter ?</h2>
               <p>En cas de symptômes compatibles, consultez un ophtalmologiste le jour même pour un examen du fond d’œil. En dehors des heures d'ouverture du cabinet, appelez le 15.</p>
             </section>
           </article>
@@ -456,14 +478,14 @@ delete root.dataset.hero;
                 <li><a href="#presentation">La présentation clinique</a></li>
                 <li><a href="#traitements">Les traitements</a></li>
                 <li><a href="#consequences">Les conséquences</a></li>
-                <li><a href="#consulter">Quand dois-je consulter ?</a></li>
+                <li><a href="#consulter">Quand dois-⁠je consulter ?</a></li>
               </ol>
             </nav>
             <div class="aside-cta">
               <div class="dropdown" data-dropdown>
-        <button type="button" class="btn btn--primary" aria-expanded="false" aria-controls="rdv-aside" data-dropdown-toggle><span class="roll"><span class="roll__text">Prendre rendez-vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
+        <button type="button" class="btn btn--primary" aria-expanded="false" aria-controls="rdv-aside" data-dropdown-toggle><span class="roll"><span class="roll__text">Prendre rendez-⁠vous</span></span><span class="btn__icon"><svg class="icon icon--chevron-down" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="m6 9 6 6 6-6"/></svg></span></button>
         <div class="dropdown__menu dropdown__menu--start" id="rdv-aside" hidden>
-          <p class="dropdown__label">Rendez-vous en ligne · Doctolib</p>
+          <p class="dropdown__label">Rendez-⁠vous en ligne · Doctolib</p>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span>Dr Nadine Buzzacchera</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span>Dr Silvia Soare</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
           <a class="dropdown__item" href="https://www.doctolib.fr/ophtalmologue/salon-de-provence/oana-gheorghe" target="_blank" rel="noopener"><span>Dr Oana Gheorghe</span><span class="sr-only"> (Doctolib, nouvel onglet)</span><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></a>
@@ -480,8 +502,8 @@ delete root.dataset.hero;
     <div class="drawing drawing--iris site-footer__drawing" aria-hidden="true"><span class="drawing__frame"><svg viewBox="0 0 1600 1000" focusable="false"><use href="../assets/images/drawings/iris.svg?v=b3233471#d"/></svg></span></div>
     <div class="container">
       <div class="footer-cta">
-        <p class="label label--light">Rendez-vous en ligne</p>
-        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-vous</span></span></span></span></p>
+        <p class="label label--light">Rendez-⁠vous en ligne</p>
+        <p class="footer-cta__title" data-focus><span class="sr-only">Prendre rendez-⁠vous</span><span aria-hidden="true"><span class="giant giant--long" style="--k:9.578"><span><span class="w" style="--w:0">Prendre</span> <span class="w" style="--w:1">rendez-⁠vous</span></span></span></span></p>
         <div class="footer-cta__actions">
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/nadine-buzzacchera" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Nadine Buzzacchera</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
           <a class="btn btn--light" href="https://www.doctolib.fr/ophtalmologue/miramas/silvia-soare-miramas" target="_blank" rel="noopener"><span class="roll"><span class="roll__text">Dr Silvia Soare</span></span><span class="sr-only"> (Doctolib, nouvel onglet)</span><span class="btn__icon"><svg class="icon icon--arrow-up-right" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path pathLength="1" d="M7 7h10v10"/><path pathLength="1" d="M7 17 17 7"/></svg></span></a>
